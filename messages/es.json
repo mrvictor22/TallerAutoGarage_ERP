@@ -1,0 +1,153 @@
+{
+  "navigation": {
+    "dashboard": "Panel de Control",
+    "orders": "Órdenes",
+    "owners": "Dueños",
+    "vehicles": "Vehículos",
+    "notifications": "Notificaciones",
+    "whatsapp": "WhatsApp",
+    "configuration": "Configuración",
+    "newOrder": "Nueva Orden",
+    "search": "Buscar...",
+    "profile": "Perfil",
+    "logout": "Cerrar Sesión"
+  },
+  "dashboard": {
+    "title": "Panel de Control",
+    "openOrders": "Órdenes Abiertas",
+    "inProgress": "En Proceso",
+    "deliveriesToday": "Entregas Hoy",
+    "pendingApproval": "Pendientes de Aprobación",
+    "recentActivities": "Actividades Recientes",
+    "recentMessages": "Mensajes Recientes"
+  },
+  "orders": {
+    "title": "Órdenes de Trabajo",
+    "newOrder": "Nueva Orden",
+    "orderNumber": "Número",
+    "client": "Cliente",
+    "vehicle": "Vehículo",
+    "status": "Estado",
+    "entryDate": "Fecha Ingreso",
+    "estimatedTotal": "Total Estimado",
+    "assignedTechnician": "Técnico Asignado",
+    "actions": "Acciones",
+    "filters": "Filtros",
+    "export": "Exportar",
+    "kanbanView": "Vista Kanban",
+    "listView": "Vista Lista",
+    "searchPlaceholder": "Buscar por placa, cliente o número...",
+    "states": {
+      "new": "Nuevo",
+      "diagnosis": "Diagnóstico",
+      "inProgress": "En Proceso",
+      "waiting": "En Espera",
+      "approval": "Aprobación",
+      "finished": "Finalizado",
+      "delivered": "Entregado"
+    }
+  },
+  "orderDetail": {
+    "summary": "Resumen",
+    "timeline": "Bitácora",
+    "parts": "Repuestos/Facturas",
+    "budget": "Presupuesto",
+    "whatsapp": "WhatsApp",
+    "history": "Historial",
+    "changeStatus": "Cambiar Estado",
+    "sendWhatsApp": "Enviar WhatsApp",
+    "generatePDF": "Generar PDF",
+    "print": "Imprimir",
+    "addEntry": "Agregar Entrada",
+    "uploadDocument": "Subir Documento",
+    "approve": "Aprobar",
+    "reject": "Rechazar"
+  },
+  "owners": {
+    "title": "Dueños",
+    "newOwner": "Nuevo Dueño",
+    "name": "Nombre",
+    "type": "Tipo",
+    "contact": "Contacto",
+    "vehicles": "Vehículos",
+    "tags": "Etiquetas",
+    "whatsappConsent": "Consentimiento WhatsApp",
+    "types": {
+      "person": "Persona",
+      "company": "Empresa"
+    }
+  },
+  "vehicles": {
+    "title": "Vehículos",
+    "newVehicle": "Nuevo Vehículo",
+    "plate": "Placa",
+    "brand": "Marca",
+    "model": "Modelo",
+    "year": "Año",
+    "color": "Color",
+    "owner": "Dueño",
+    "serviceHistory": "Historial de Servicios"
+  },
+  "whatsapp": {
+    "title": "Notificaciones WhatsApp",
+    "templates": "Plantillas",
+    "newTemplate": "Nueva Plantilla",
+    "templateName": "Nombre de Plantilla",
+    "content": "Contenido",
+    "variables": "Variables",
+    "preview": "Vista Previa",
+    "send": "Enviar",
+    "status": {
+      "pending": "Pendiente",
+      "sent": "Enviado",
+      "delivered": "Entregado",
+      "read": "Leído",
+      "error": "Error"
+    }
+  },
+  "configuration": {
+    "title": "Configuración",
+    "catalogs": "Catálogos",
+    "users": "Usuarios",
+    "workshop": "Taller",
+    "orderStates": "Estados de Orden",
+    "workTypes": "Tipos de Trabajo",
+    "taxes": "Impuestos"
+  },
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "view": "Ver",
+    "add": "Agregar",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "clear": "Limpiar",
+    "loading": "Cargando...",
+    "noResults": "No se encontraron resultados",
+    "confirm": "Confirmar",
+    "yes": "Sí",
+    "no": "No",
+    "required": "Requerido",
+    "optional": "Opcional",
+    "date": "Fecha",
+    "time": "Hora",
+    "amount": "Monto",
+    "total": "Total",
+    "subtotal": "Subtotal",
+    "tax": "Impuesto",
+    "discount": "Descuento"
+  },
+  "forms": {
+    "validation": {
+      "required": "Este campo es requerido",
+      "email": "Ingrese un email válido",
+      "phone": "Ingrese un teléfono válido",
+      "minLength": "Mínimo {min} caracteres",
+      "maxLength": "Máximo {max} caracteres",
+      "numeric": "Solo números",
+      "positive": "Debe ser un número positivo"
+    }
+  }
+}
