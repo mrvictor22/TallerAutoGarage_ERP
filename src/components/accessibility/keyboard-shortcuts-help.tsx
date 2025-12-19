@@ -26,7 +26,7 @@ export function KeyboardShortcutsHelp({ scope = 'global' }: KeyboardShortcutsHel
   const globalShortcuts = getShortcutsForScope('global');
   const scopeShortcuts = getShortcutsForScope(scope).filter(s => s.scope !== 'global');
 
-  const formatShortcut = (shortcut: any) => {
+  const formatShortcut = (shortcut: { ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean; key: string }) => {
     const keys = [];
     if (shortcut.ctrlKey) keys.push('Ctrl');
     if (shortcut.altKey) keys.push('Alt');

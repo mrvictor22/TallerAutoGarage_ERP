@@ -225,7 +225,7 @@ export interface WorkshopConfig {
   tax_regime: string;
   currency: string;
   logo_url: string | null;
-  business_hours: any;
+  business_hours: Record<string, unknown> | null;
   order_prefix: string;
   order_counter: number;
   whatsapp_enabled: boolean;
@@ -354,7 +354,7 @@ export interface UIState {
   theme: 'light' | 'dark';
   sidebarCollapsed: boolean;
   tableColumns: Record<string, string[]>;
-  recentFilters: Record<string, any>;
+  recentFilters: Record<string, unknown>;
 }
 
 // File upload types

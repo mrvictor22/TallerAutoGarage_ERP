@@ -261,13 +261,13 @@ export function OrdersListContent() {
     toast.success('Archivo exportado exitosamente');
   };
 
-  const updateFilter = (key: keyof OrderFilters, value: any) => {
+  const updateFilter = <K extends keyof OrderFilters>(key: K, value: OrderFilters[K] | undefined | '') => {
     setFilters(prev => {
       const newFilters = { ...prev };
       if (value === undefined || value === '' || (Array.isArray(value) && value.length === 0)) {
         delete newFilters[key];
       } else {
-        newFilters[key] = value;
+        newFilters[key] = value as OrderFilters[K];
       }
       return newFilters;
     });

@@ -1,14 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { configApi, usersApi } from '@/services/api';
-import { WorkshopConfig } from '@/types';
-import { Profile } from '@/types/database';
+import { configApi, usersApi, expenseCategoriesApi } from '@/services/supabase-api';
+import { WorkshopConfig, Profile, ExpenseCategory } from '@/types/database';
+import { useAuthStore } from '@/stores/auth';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,7 +31,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { formatDate } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Settings,
   Users,
@@ -41,54 +50,243 @@ import {
   Edit,
   Trash2,
   Eye,
-  Shield,
-  Mail,
-  Phone,
-  MapPin,
-  Clock,
-  DollarSign,
-  Palette,
-  Bell,
-  Database
+  EyeOff,
+  MessageSquare,
+  Tag,
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ColumnDef } from '@tanstack/react-table';
 
+interface UserFormData {
+  full_name: string;
+  email: string;
+  password?: string;
+  role: 'admin' | 'reception' | 'technician';
+  phone?: string;
+  is_active: boolean;
+}
+
+interface CategoryFormData {
+  name: string;
+  description?: string;
+  color?: string;
+}
+
 export function ConfigurationContent() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState('taller');
+  const { isAdmin } = useAuthStore();
+  const [activeTab, setActiveTab] = useState('general');
+
+  // User management state
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [isEditingUser, setIsEditingUser] = useState(false);
+  const [userFormData, setUserFormData] = useState<UserFormData>({
+    full_name: '',
+    email: '',
+    password: '',
+    role: 'technician',
+    phone: '',
+    is_active: true
+  });
+
+  // Category management state
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<ExpenseCategory | null>(null);
+  const [isEditingCategory, setIsEditingCategory] = useState(false);
+  const [categoryFormData, setCategoryFormData] = useState<CategoryFormData>({
+    name: '',
+    description: '',
+    color: '#3b82f6'
+  });
+  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
+
+  // Workshop config form state
+  const [configFormData, setConfigFormData] = useState<Partial<WorkshopConfig>>({});
+  const [showWhatsAppToken, setShowWhatsAppToken] = useState(false);
+
+  // Check admin permissions
+  useEffect(() => {
+    if (!isAdmin()) {
+      toast.error('No tienes permisos para acceder a esta sección');
+      router.push('/');
+    }
+  }, [isAdmin, router]);
 
   // Fetch workshop config
-  const { data: config, isLoading: configLoading } = useQuery({
+  const { data: configResponse, isLoading: configLoading } = useQuery({
     queryKey: ['workshop-config'],
-    queryFn: () => configApi.getWorkshopConfig()
+    queryFn: () => configApi.getWorkshopConfig(),
+    enabled: isAdmin()
   });
+
+  const config = configResponse?.data;
+
+  // Initialize form data when config loads
+  useEffect(() => {
+    if (config) {
+      setConfigFormData(config);
+    }
+  }, [config]);
 
   // Fetch users
   const { data: usersResponse, isLoading: usersLoading } = useQuery({
     queryKey: ['users'],
-    queryFn: () => usersApi.getUsers()
+    queryFn: () => usersApi.getUsers(true),
+    enabled: isAdmin()
   });
 
-  const users = (usersResponse?.data || []) as unknown as Profile[];
+  const users = usersResponse?.data || [];
 
-  // User columns
+  // Fetch expense categories
+  const { data: categoriesResponse, isLoading: categoriesLoading } = useQuery({
+    queryKey: ['expense-categories'],
+    queryFn: () => expenseCategoriesApi.getCategories(),
+    enabled: isAdmin()
+  });
+
+  const categories = categoriesResponse?.data || [];
+
+  // Update workshop config mutation
+  const updateConfigMutation = useMutation({
+    mutationFn: (data: Partial<WorkshopConfig>) => configApi.updateWorkshopConfig(data),
+    onSuccess: (response) => {
+      if (response.success) {
+        toast.success(response.message || 'Configuración guardada exitosamente');
+        queryClient.invalidateQueries({ queryKey: ['workshop-config'] });
+      } else {
+        toast.error(response.error || 'Error al guardar configuración');
+      }
+    },
+    onError: () => {
+      toast.error('Error al guardar configuración');
+    }
+  });
+
+  // Create user mutation
+  const createUserMutation = useMutation({
+    mutationFn: (data: UserFormData) => usersApi.createUser({
+      email: data.email,
+      password: data.password!,
+      full_name: data.full_name,
+      role: data.role,
+      phone: data.phone || null
+    }),
+    onSuccess: (response) => {
+      if (response.success) {
+        toast.success(response.message || 'Usuario creado exitosamente');
+        queryClient.invalidateQueries({ queryKey: ['users'] });
+        setIsUserDialogOpen(false);
+        resetUserForm();
+      } else {
+        toast.error(response.error || 'Error al crear usuario');
+      }
+    }
+  });
+
+  // Update user mutation
+  const updateUserMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<Profile> }) =>
+      usersApi.updateProfile(id, data),
+    onSuccess: (response) => {
+      if (response.success) {
+        toast.success(response.message || 'Usuario actualizado exitosamente');
+        queryClient.invalidateQueries({ queryKey: ['users'] });
+        setIsUserDialogOpen(false);
+        resetUserForm();
+      } else {
+        toast.error(response.error || 'Error al actualizar usuario');
+      }
+    }
+  });
+
+  // Toggle user status mutation
+  const toggleUserStatusMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      usersApi.toggleUserStatus(id, isActive),
+    onSuccess: (response) => {
+      if (response.success) {
+        toast.success(response.message);
+        queryClient.invalidateQueries({ queryKey: ['users'] });
+      } else {
+        toast.error(response.error || 'Error al cambiar estado del usuario');
+      }
+    }
+  });
+
+  // Create category mutation
+  const createCategoryMutation = useMutation({
+    mutationFn: (data: CategoryFormData) => expenseCategoriesApi.createCategory({
+      name: data.name,
+      description: data.description || null,
+      color: data.color || null,
+      is_active: true
+    }),
+    onSuccess: (response) => {
+      if (response.success) {
+        toast.success(response.message || 'Categoría creada exitosamente');
+        queryClient.invalidateQueries({ queryKey: ['expense-categories'] });
+        setIsCategoryDialogOpen(false);
+        resetCategoryForm();
+      } else {
+        toast.error(response.error || 'Error al crear categoría');
+      }
+    }
+  });
+
+  // Update category mutation
+  const updateCategoryMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: CategoryFormData }) =>
+      expenseCategoriesApi.updateCategory(id, {
+        name: data.name,
+        description: data.description || null,
+        color: data.color || null
+      }),
+    onSuccess: (response) => {
+      if (response.success) {
+        toast.success(response.message || 'Categoría actualizada exitosamente');
+        queryClient.invalidateQueries({ queryKey: ['expense-categories'] });
+        setIsCategoryDialogOpen(false);
+        resetCategoryForm();
+      } else {
+        toast.error(response.error || 'Error al actualizar categoría');
+      }
+    }
+  });
+
+  // Delete category mutation
+  const deleteCategoryMutation = useMutation({
+    mutationFn: (id: string) => expenseCategoriesApi.deleteCategory(id),
+    onSuccess: (response) => {
+      if (response.success) {
+        toast.success(response.message || 'Categoría eliminada exitosamente');
+        queryClient.invalidateQueries({ queryKey: ['expense-categories'] });
+        setCategoryToDelete(null);
+      } else {
+        toast.error(response.error || 'Error al eliminar categoría');
+      }
+    }
+  });
+
+  // User table columns
   const userColumns: ColumnDef<Profile>[] = [
     {
       accessorKey: 'full_name',
       header: 'Usuario',
       cell: ({ row }) => {
         const user = row.original;
+        const initials = user.full_name
+          .split(' ')
+          .map(n => n[0])
+          .join('')
+          .toUpperCase();
         return (
-          <div className="flex items-center gap-2">
-            <div className="flex-shrink-0 w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-              <span className="text-sm font-medium">
-                {user.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
-              </span>
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+              <span className="text-sm font-medium">{initials}</span>
             </div>
             <div>
               <div className="font-medium">{user.full_name}</div>
@@ -104,7 +302,7 @@ export function ConfigurationContent() {
       cell: ({ row }) => {
         const role = row.getValue('role') as string;
         return (
-          <Badge 
+          <Badge
             variant={
               role === 'admin' ? 'default' :
               role === 'reception' ? 'secondary' : 'outline'
@@ -118,26 +316,35 @@ export function ConfigurationContent() {
       },
     },
     {
-      accessorKey: 'is_active',
-      header: 'Estado',
+      accessorKey: 'phone',
+      header: 'Teléfono',
       cell: ({ row }) => {
-        const isActive = row.getValue('is_active') as boolean;
-        return (
-          <Badge variant={isActive ? 'default' : 'secondary'}>
-            {isActive ? 'Activo' : 'Inactivo'}
-          </Badge>
+        const phone = row.getValue('phone') as string | null;
+        return phone ? (
+          <span className="text-sm">{phone}</span>
+        ) : (
+          <span className="text-sm text-muted-foreground">-</span>
         );
       },
     },
     {
-      accessorKey: 'lastLogin',
-      header: 'Último Acceso',
+      accessorKey: 'is_active',
+      header: 'Estado',
       cell: ({ row }) => {
-        const lastLogin = row.getValue('lastLogin') as string;
-        return lastLogin ? (
-          <span className="text-sm">{formatDate(lastLogin)}</span>
-        ) : (
-          <span className="text-sm text-muted-foreground">Nunca</span>
+        const isActive = row.getValue('is_active') as boolean;
+        const user = row.original;
+        return (
+          <div className="flex items-center gap-2">
+            <Badge variant={isActive ? 'default' : 'secondary'}>
+              {isActive ? 'Activo' : 'Inactivo'}
+            </Badge>
+            <Switch
+              checked={isActive}
+              onCheckedChange={(checked) => {
+                toggleUserStatusMutation.mutate({ id: user.id, isActive: checked });
+              }}
+            />
+          </div>
         );
       },
     },
@@ -147,20 +354,82 @@ export function ConfigurationContent() {
       cell: ({ row }) => {
         const user = row.original;
         return (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleEditUser(user)}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+        );
+      },
+    },
+  ];
+
+  // Category table columns
+  const categoryColumns: ColumnDef<ExpenseCategory>[] = [
+    {
+      accessorKey: 'name',
+      header: 'Nombre',
+      cell: ({ row }) => {
+        const category = row.original;
+        return (
+          <div className="flex items-center gap-2">
+            {category.color && (
+              <div
+                className="w-4 h-4 rounded-full border"
+                style={{ backgroundColor: category.color }}
+              />
+            )}
+            <span className="font-medium">{category.name}</span>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'description',
+      header: 'Descripción',
+      cell: ({ row }) => {
+        const description = row.getValue('description') as string | null;
+        return description ? (
+          <span className="text-sm text-muted-foreground">{description}</span>
+        ) : (
+          <span className="text-sm text-muted-foreground">-</span>
+        );
+      },
+    },
+    {
+      accessorKey: 'is_active',
+      header: 'Estado',
+      cell: ({ row }) => {
+        const isActive = row.getValue('is_active') as boolean;
+        return (
+          <Badge variant={isActive ? 'default' : 'secondary'}>
+            {isActive ? 'Activa' : 'Inactiva'}
+          </Badge>
+        );
+      },
+    },
+    {
+      id: 'actions',
+      header: 'Acciones',
+      cell: ({ row }) => {
+        const category = row.original;
+        return (
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => handleViewUser(user)}
+              onClick={() => handleEditCategory(category)}
             >
-              <Eye className="h-4 w-4" />
+              <Edit className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => handleEditUser(user)}
+              onClick={() => setCategoryToDelete(category.id)}
             >
-              <Edit className="h-4 w-4" />
+              <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
           </div>
         );
@@ -168,52 +437,130 @@ export function ConfigurationContent() {
     },
   ];
 
-  const handleViewUser = (user: Profile) => {
-    setSelectedUser(user);
-    setIsEditingUser(false);
+  const resetUserForm = () => {
+    setUserFormData({
+      full_name: '',
+      email: '',
+      password: '',
+      role: 'technician',
+      phone: '',
+      is_active: true
+    });
+    setSelectedUser(null);
+  };
+
+  const resetCategoryForm = () => {
+    setCategoryFormData({
+      name: '',
+      description: '',
+      color: '#3b82f6'
+    });
+    setSelectedCategory(null);
+  };
+
+  const handleNewUser = () => {
+    resetUserForm();
+    setIsEditingUser(true);
     setIsUserDialogOpen(true);
   };
 
   const handleEditUser = (user: Profile) => {
     setSelectedUser(user);
-    setIsEditingUser(true);
-    setIsUserDialogOpen(true);
-  };
-
-  const handleNewUser = () => {
-    setSelectedUser({
-      id: `user_${Date.now()}`,
-      full_name: '',
-      email: '',
-      role: 'technician',
-      is_active: true,
-      avatar_url: null,
-      phone: null,
-      permissions: {},
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+    setUserFormData({
+      full_name: user.full_name,
+      email: user.email,
+      role: user.role,
+      phone: user.phone || '',
+      is_active: user.is_active,
+      password: undefined
     });
     setIsEditingUser(true);
     setIsUserDialogOpen(true);
   };
 
   const handleSaveUser = () => {
+    if (!userFormData.full_name || !userFormData.email) {
+      toast.error('Por favor completa los campos obligatorios');
+      return;
+    }
+
     if (selectedUser) {
-      // Simulate save
-      toast.success('Usuario guardado exitosamente');
-      setIsUserDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+      // Update existing user
+      updateUserMutation.mutate({
+        id: selectedUser.id,
+        data: {
+          full_name: userFormData.full_name,
+          email: userFormData.email,
+          role: userFormData.role,
+          phone: userFormData.phone || null,
+          is_active: userFormData.is_active
+        }
+      });
+    } else {
+      // Create new user
+      if (!userFormData.password || userFormData.password.length < 6) {
+        toast.error('La contraseña debe tener al menos 6 caracteres');
+        return;
+      }
+      createUserMutation.mutate(userFormData);
+    }
+  };
+
+  const handleNewCategory = () => {
+    resetCategoryForm();
+    setIsEditingCategory(true);
+    setIsCategoryDialogOpen(true);
+  };
+
+  const handleEditCategory = (category: ExpenseCategory) => {
+    setSelectedCategory(category);
+    setCategoryFormData({
+      name: category.name,
+      description: category.description || '',
+      color: category.color || '#3b82f6'
+    });
+    setIsEditingCategory(true);
+    setIsCategoryDialogOpen(true);
+  };
+
+  const handleSaveCategory = () => {
+    if (!categoryFormData.name) {
+      toast.error('El nombre es obligatorio');
+      return;
+    }
+
+    if (selectedCategory) {
+      // Update existing category
+      updateCategoryMutation.mutate({
+        id: selectedCategory.id,
+        data: categoryFormData
+      });
+    } else {
+      // Create new category
+      createCategoryMutation.mutate(categoryFormData);
     }
   };
 
   const handleSaveConfig = () => {
-    // Simulate save
-    toast.success('Configuración guardada exitosamente');
-    queryClient.invalidateQueries({ queryKey: ['workshop-config'] });
+    updateConfigMutation.mutate(configFormData);
   };
 
   if (configLoading) {
-    return <div>Cargando configuración...</div>;
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAdmin()) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96 space-y-4">
+        <AlertCircle className="h-16 w-16 text-destructive" />
+        <h2 className="text-2xl font-bold">Acceso Denegado</h2>
+        <p className="text-muted-foreground">No tienes permisos para acceder a esta sección</p>
+      </div>
+    );
   }
 
   return (
@@ -231,37 +578,40 @@ export function ConfigurationContent() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="taller">
+          <TabsTrigger value="general">
             <Building className="mr-2 h-4 w-4" />
-            Taller
+            General
           </TabsTrigger>
           <TabsTrigger value="usuarios">
             <Users className="mr-2 h-4 w-4" />
             Usuarios ({users.length})
           </TabsTrigger>
-          <TabsTrigger value="notificaciones">
-            <Bell className="mr-2 h-4 w-4" />
-            Notificaciones
+          <TabsTrigger value="whatsapp">
+            <MessageSquare className="mr-2 h-4 w-4" />
+            WhatsApp
           </TabsTrigger>
-          <TabsTrigger value="sistema">
-            <Database className="mr-2 h-4 w-4" />
-            Sistema
+          <TabsTrigger value="categorias">
+            <Tag className="mr-2 h-4 w-4" />
+            Categorías ({categories.length})
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="taller" className="space-y-6">
+        {/* General Tab */}
+        <TabsContent value="general" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Basic Information */}
             <Card>
               <CardHeader>
                 <CardTitle>Información Básica</CardTitle>
+                <CardDescription>Información general del taller</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="workshop-name">Nombre del Taller</Label>
+                  <Label htmlFor="workshop-name">Nombre del Taller *</Label>
                   <Input
                     id="workshop-name"
-                    defaultValue={config?.name || ''}
+                    value={configFormData.name || ''}
+                    onChange={(e) => setConfigFormData({ ...configFormData, name: e.target.value })}
                     placeholder="Nombre del taller"
                   />
                 </div>
@@ -269,7 +619,8 @@ export function ConfigurationContent() {
                   <Label htmlFor="workshop-address">Dirección</Label>
                   <Textarea
                     id="workshop-address"
-                    defaultValue={config?.address || ''}
+                    value={configFormData.address || ''}
+                    onChange={(e) => setConfigFormData({ ...configFormData, address: e.target.value })}
                     placeholder="Dirección completa del taller"
                     rows={3}
                   />
@@ -279,7 +630,8 @@ export function ConfigurationContent() {
                     <Label htmlFor="workshop-phone">Teléfono</Label>
                     <Input
                       id="workshop-phone"
-                      defaultValue={config?.phone || ''}
+                      value={configFormData.phone || ''}
+                      onChange={(e) => setConfigFormData({ ...configFormData, phone: e.target.value })}
                       placeholder="(503) 1234-5678"
                     />
                   </div>
@@ -288,52 +640,10 @@ export function ConfigurationContent() {
                     <Input
                       id="workshop-email"
                       type="email"
-                      defaultValue={config?.email || ''}
+                      value={configFormData.email || ''}
+                      onChange={(e) => setConfigFormData({ ...configFormData, email: e.target.value })}
                       placeholder="contacto@taller.com"
                     />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Business Hours */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Horarios de Atención</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="open-time">Hora de Apertura</Label>
-                    <Input
-                      id="open-time"
-                      type="time"
-                      defaultValue={(config?.business_hours as any)?.open || '08:00'}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="close-time">Hora de Cierre</Label>
-                    <Input
-                      id="close-time"
-                      type="time"
-                      defaultValue={(config?.business_hours as any)?.close || '17:00'}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label>Días de Trabajo</Label>
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map((day, index) => (
-                      <div key={day} className="flex items-center space-x-2">
-                        <Switch
-                          id={`day-${index}`}
-                          defaultChecked={(config?.business_hours as any)?.workingDays?.includes(index) ?? index < 6}
-                        />
-                        <Label htmlFor={`day-${index}`} className="text-sm">
-                          {day}
-                        </Label>
-                      </div>
-                    ))}
                   </div>
                 </div>
               </CardContent>
@@ -343,19 +653,24 @@ export function ConfigurationContent() {
             <Card>
               <CardHeader>
                 <CardTitle>Información Fiscal</CardTitle>
+                <CardDescription>Datos fiscales del taller</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
                   <Label htmlFor="tax-id">NIT/RUC</Label>
                   <Input
                     id="tax-id"
-                    defaultValue={config?.tax_id || ''}
+                    value={configFormData.tax_id || ''}
+                    onChange={(e) => setConfigFormData({ ...configFormData, tax_id: e.target.value })}
                     placeholder="1234567890123"
                   />
                 </div>
                 <div>
                   <Label htmlFor="tax-regime">Régimen Fiscal</Label>
-                  <Select defaultValue={config?.tax_regime || 'general'}>
+                  <Select
+                    value={configFormData.tax_regime || 'general'}
+                    onValueChange={(value) => setConfigFormData({ ...configFormData, tax_regime: value })}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -368,7 +683,10 @@ export function ConfigurationContent() {
                 </div>
                 <div>
                   <Label htmlFor="currency">Moneda</Label>
-                  <Select defaultValue={config?.currency || 'USD'}>
+                  <Select
+                    value={configFormData.currency || 'USD'}
+                    onValueChange={(value) => setConfigFormData({ ...configFormData, currency: value })}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -378,39 +696,14 @@ export function ConfigurationContent() {
                     </SelectContent>
                   </Select>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* WhatsApp Configuration */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Configuración WhatsApp</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="whatsapp-enabled"
-                    defaultChecked={config?.whatsapp_enabled ?? true}
-                  />
-                  <Label htmlFor="whatsapp-enabled">
-                    Habilitar notificaciones WhatsApp
-                  </Label>
-                </div>
                 <div>
-                  <Label htmlFor="whatsapp-number">Número WhatsApp Business</Label>
+                  <Label htmlFor="order-prefix">Prefijo de Órdenes</Label>
                   <Input
-                    id="whatsapp-number"
-                    defaultValue={config?.whatsapp_business_number || ''}
-                    placeholder="(503) 1234-5678"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="whatsapp-token">Token de API</Label>
-                  <Input
-                    id="whatsapp-token"
-                    type="password"
-                    defaultValue={config?.whatsapp_api_token || ''}
-                    placeholder="Token de WhatsApp Business API"
+                    id="order-prefix"
+                    value={configFormData.order_prefix || 'ORD'}
+                    onChange={(e) => setConfigFormData({ ...configFormData, order_prefix: e.target.value.toUpperCase() })}
+                    placeholder="ORD"
+                    maxLength={5}
                   />
                 </div>
               </CardContent>
@@ -418,195 +711,185 @@ export function ConfigurationContent() {
           </div>
 
           <div className="flex justify-end">
-            <Button onClick={handleSaveConfig}>
-              <Save className="mr-2 h-4 w-4" />
-              Guardar Configuración
+            <Button
+              onClick={handleSaveConfig}
+              disabled={updateConfigMutation.isPending}
+            >
+              {updateConfigMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Guardar Configuración
+                </>
+              )}
             </Button>
           </div>
         </TabsContent>
 
+        {/* Users Tab */}
         <TabsContent value="usuarios" className="space-y-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium">Gestión de Usuarios</h3>
+            <div>
+              <h3 className="text-lg font-medium">Gestión de Usuarios</h3>
+              <p className="text-sm text-muted-foreground">
+                Administra los usuarios del sistema
+              </p>
+            </div>
             <Button onClick={handleNewUser}>
               <Plus className="mr-2 h-4 w-4" />
               Nuevo Usuario
             </Button>
           </div>
-          
-          <DataTable
-            columns={userColumns}
-            data={users}
-            searchKey="full_name"
-            searchPlaceholder="Buscar usuarios..."
-          />
+
+          {usersLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : (
+            <DataTable
+              columns={userColumns}
+              data={users}
+              searchKey="full_name"
+              searchPlaceholder="Buscar usuarios..."
+            />
+          )}
         </TabsContent>
 
-        <TabsContent value="notificaciones" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Notificaciones por Email</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Switch id="email-notifications" defaultChecked={true} />
-                  <Label htmlFor="email-notifications">
-                    Habilitar notificaciones por email
+        {/* WhatsApp Tab */}
+        <TabsContent value="whatsapp" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Configuración de WhatsApp Business</CardTitle>
+              <CardDescription>
+                Configura la integración con WhatsApp Business API
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="space-y-0.5">
+                  <Label htmlFor="whatsapp-enabled" className="text-base">
+                    Habilitar WhatsApp
                   </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Activa las notificaciones por WhatsApp
+                  </p>
                 </div>
+                <Switch
+                  id="whatsapp-enabled"
+                  checked={configFormData.whatsapp_enabled ?? false}
+                  onCheckedChange={(checked) =>
+                    setConfigFormData({ ...configFormData, whatsapp_enabled: checked })
+                  }
+                />
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
                 <div>
-                  <Label htmlFor="smtp-server">Servidor SMTP</Label>
+                  <Label htmlFor="whatsapp-number">Número WhatsApp Business</Label>
                   <Input
-                    id="smtp-server"
-                    placeholder="smtp.gmail.com"
+                    id="whatsapp-number"
+                    value={configFormData.whatsapp_business_number || ''}
+                    onChange={(e) =>
+                      setConfigFormData({ ...configFormData, whatsapp_business_number: e.target.value })
+                    }
+                    placeholder="+503 1234-5678"
+                    disabled={!configFormData.whatsapp_enabled}
                   />
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Número de teléfono con código de país
+                  </p>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="smtp-port">Puerto</Label>
+
+                <div>
+                  <Label htmlFor="whatsapp-token">Token de API</Label>
+                  <div className="relative">
                     <Input
-                      id="smtp-port"
-                      placeholder="587"
+                      id="whatsapp-token"
+                      type={showWhatsAppToken ? 'text' : 'password'}
+                      value={configFormData.whatsapp_api_token || ''}
+                      onChange={(e) =>
+                        setConfigFormData({ ...configFormData, whatsapp_api_token: e.target.value })
+                      }
+                      placeholder="Token de WhatsApp Business API"
+                      disabled={!configFormData.whatsapp_enabled}
+                      className="pr-10"
                     />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3"
+                      onClick={() => setShowWhatsAppToken(!showWhatsAppToken)}
+                      disabled={!configFormData.whatsapp_enabled}
+                    >
+                      {showWhatsAppToken ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </Button>
                   </div>
-                  <div>
-                    <Label htmlFor="smtp-security">Seguridad</Label>
-                    <Select defaultValue="tls">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Ninguna</SelectItem>
-                        <SelectItem value="tls">TLS</SelectItem>
-                        <SelectItem value="ssl">SSL</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Token permanente de WhatsApp Business API
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Configuración de Recordatorios</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Switch id="auto-reminders" defaultChecked={true} />
-                  <Label htmlFor="auto-reminders">
-                    Recordatorios automáticos
-                  </Label>
-                </div>
-                <div>
-                  <Label htmlFor="reminder-days">Días antes del servicio</Label>
-                  <Input
-                    id="reminder-days"
-                    type="number"
-                    defaultValue="1"
-                    min="1"
-                    max="30"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="reminder-time">Hora de envío</Label>
-                  <Input
-                    id="reminder-time"
-                    type="time"
-                    defaultValue="09:00"
-                  />
-                </div>
-              </CardContent>
-            </Card>
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSaveConfig}
+              disabled={updateConfigMutation.isPending}
+            >
+              {updateConfigMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Guardar Configuración
+                </>
+              )}
+            </Button>
           </div>
         </TabsContent>
 
-        <TabsContent value="sistema" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Configuración General</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="app-name">Nombre de la Aplicación</Label>
-                  <Input
-                    id="app-name"
-                    defaultValue="Garage Management"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="timezone">Zona Horaria</Label>
-                  <Select defaultValue="America/El_Salvador">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="America/El_Salvador">El Salvador (GMT-6)</SelectItem>
-                      <SelectItem value="America/Guatemala">Guatemala (GMT-6)</SelectItem>
-                      <SelectItem value="America/Tegucigalpa">Honduras (GMT-6)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="date-format">Formato de Fecha</Label>
-                  <Select defaultValue="dd/mm/yyyy">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="dd/mm/yyyy">DD/MM/YYYY</SelectItem>
-                      <SelectItem value="mm/dd/yyyy">MM/DD/YYYY</SelectItem>
-                      <SelectItem value="yyyy-mm-dd">YYYY-MM-DD</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Respaldo y Mantenimiento</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Switch id="auto-backup" defaultChecked={true} />
-                  <Label htmlFor="auto-backup">
-                    Respaldo automático diario
-                  </Label>
-                </div>
-                <div>
-                  <Label htmlFor="backup-time">Hora de respaldo</Label>
-                  <Input
-                    id="backup-time"
-                    type="time"
-                    defaultValue="02:00"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="retention-days">Días de retención</Label>
-                  <Input
-                    id="retention-days"
-                    type="number"
-                    defaultValue="30"
-                    min="7"
-                    max="365"
-                  />
-                </div>
-                <Separator />
-                <div className="space-y-2">
-                  <Button variant="outline" className="w-full">
-                    <Database className="mr-2 h-4 w-4" />
-                    Crear Respaldo Manual
-                  </Button>
-                  <Button variant="outline" className="w-full">
-                    <Database className="mr-2 h-4 w-4" />
-                    Restaurar desde Respaldo
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+        {/* Categories Tab */}
+        <TabsContent value="categorias" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium">Categorías de Gastos</h3>
+              <p className="text-sm text-muted-foreground">
+                Administra las categorías para clasificar gastos
+              </p>
+            </div>
+            <Button onClick={handleNewCategory}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nueva Categoría
+            </Button>
           </div>
+
+          {categoriesLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : (
+            <DataTable
+              columns={categoryColumns}
+              data={categories}
+              searchKey="name"
+              searchPlaceholder="Buscar categorías..."
+            />
+          )}
         </TabsContent>
       </Tabs>
 
@@ -615,94 +898,239 @@ export function ConfigurationContent() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {isEditingUser
-                ? (selectedUser?.full_name ? 'Editar Usuario' : 'Nuevo Usuario')
-                : 'Detalles del Usuario'
-              }
+              {selectedUser ? 'Editar Usuario' : 'Nuevo Usuario'}
             </DialogTitle>
             <DialogDescription>
-              {isEditingUser
-                ? 'Configura la información y permisos del usuario'
-                : 'Información del usuario del sistema'
+              {selectedUser
+                ? 'Actualiza la información del usuario'
+                : 'Crea un nuevo usuario del sistema'
               }
             </DialogDescription>
           </DialogHeader>
 
-          {selectedUser && (
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="user-name">Nombre Completo</Label>
-                <Input
-                  id="user-name"
-                  value={selectedUser.full_name}
-                  onChange={(e) => setSelectedUser({
-                    ...selectedUser,
-                    full_name: e.target.value
-                  })}
-                  disabled={!isEditingUser}
-                />
-              </div>
-              <div>
-                <Label htmlFor="user-email">Email</Label>
-                <Input
-                  id="user-email"
-                  type="email"
-                  value={selectedUser.email}
-                  onChange={(e) => setSelectedUser({
-                    ...selectedUser,
-                    email: e.target.value
-                  })}
-                  disabled={!isEditingUser}
-                />
-              </div>
-              <div>
-                <Label htmlFor="user-role">Rol</Label>
-                <Select
-                  value={selectedUser.role}
-                  onValueChange={(value) => setSelectedUser({
-                    ...selectedUser,
-                    role: value as any
-                  })}
-                  disabled={!isEditingUser}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Administrador</SelectItem>
-                    <SelectItem value="reception">Recepción</SelectItem>
-                    <SelectItem value="technician">Técnico</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {isEditingUser && (
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="user-active"
-                    checked={selectedUser.is_active}
-                    onCheckedChange={(checked) => setSelectedUser({
-                      ...selectedUser,
-                      is_active: checked
-                    })}
-                  />
-                  <Label htmlFor="user-active">Usuario activo</Label>
-                </div>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="user-name">Nombre Completo *</Label>
+              <Input
+                id="user-name"
+                value={userFormData.full_name}
+                onChange={(e) => setUserFormData({ ...userFormData, full_name: e.target.value })}
+                placeholder="Juan Pérez"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="user-email">Email *</Label>
+              <Input
+                id="user-email"
+                type="email"
+                value={userFormData.email}
+                onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
+                placeholder="juan@ejemplo.com"
+                disabled={!!selectedUser}
+              />
+              {selectedUser && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  El email no se puede modificar
+                </p>
               )}
             </div>
-          )}
+
+            {!selectedUser && (
+              <div>
+                <Label htmlFor="user-password">Contraseña *</Label>
+                <Input
+                  id="user-password"
+                  type="password"
+                  value={userFormData.password || ''}
+                  onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
+                  placeholder="Mínimo 6 caracteres"
+                />
+              </div>
+            )}
+
+            <div>
+              <Label htmlFor="user-phone">Teléfono</Label>
+              <Input
+                id="user-phone"
+                value={userFormData.phone || ''}
+                onChange={(e) => setUserFormData({ ...userFormData, phone: e.target.value })}
+                placeholder="(503) 1234-5678"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="user-role">Rol *</Label>
+              <Select
+                value={userFormData.role}
+                onValueChange={(value: 'admin' | 'reception' | 'technician') => setUserFormData({ ...userFormData, role: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                  <SelectItem value="reception">Recepción</SelectItem>
+                  <SelectItem value="technician">Técnico</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedUser && (
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="user-active"
+                  checked={userFormData.is_active}
+                  onCheckedChange={(checked) =>
+                    setUserFormData({ ...userFormData, is_active: checked })
+                  }
+                />
+                <Label htmlFor="user-active">Usuario activo</Label>
+              </div>
+            )}
+          </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsUserDialogOpen(false);
+                resetUserForm();
+              }}
+            >
               Cancelar
             </Button>
-            {isEditingUser && (
-              <Button onClick={handleSaveUser}>
-                Guardar Usuario
-              </Button>
-            )}
+            <Button
+              onClick={handleSaveUser}
+              disabled={createUserMutation.isPending || updateUserMutation.isPending}
+            >
+              {(createUserMutation.isPending || updateUserMutation.isPending) ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                'Guardar Usuario'
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Category Dialog */}
+      <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {selectedCategory ? 'Editar Categoría' : 'Nueva Categoría'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedCategory
+                ? 'Actualiza la información de la categoría'
+                : 'Crea una nueva categoría de gastos'
+              }
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="category-name">Nombre *</Label>
+              <Input
+                id="category-name"
+                value={categoryFormData.name}
+                onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })}
+                placeholder="Servicios, Mantenimiento, etc."
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="category-description">Descripción</Label>
+              <Textarea
+                id="category-description"
+                value={categoryFormData.description || ''}
+                onChange={(e) =>
+                  setCategoryFormData({ ...categoryFormData, description: e.target.value })
+                }
+                placeholder="Descripción de la categoría (opcional)"
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="category-color">Color</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="category-color"
+                  type="color"
+                  value={categoryFormData.color || '#3b82f6'}
+                  onChange={(e) =>
+                    setCategoryFormData({ ...categoryFormData, color: e.target.value })
+                  }
+                  className="w-20 h-10"
+                />
+                <Input
+                  value={categoryFormData.color || '#3b82f6'}
+                  onChange={(e) =>
+                    setCategoryFormData({ ...categoryFormData, color: e.target.value })
+                  }
+                  placeholder="#3b82f6"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsCategoryDialogOpen(false);
+                resetCategoryForm();
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveCategory}
+              disabled={createCategoryMutation.isPending || updateCategoryMutation.isPending}
+            >
+              {(createCategoryMutation.isPending || updateCategoryMutation.isPending) ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                'Guardar Categoría'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Category Confirmation */}
+      <AlertDialog open={!!categoryToDelete} onOpenChange={() => setCategoryToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. La categoría será eliminada permanentemente.
+              Si tiene gastos asociados, no se podrá eliminar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (categoryToDelete) {
+                  deleteCategoryMutation.mutate(categoryToDelete);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

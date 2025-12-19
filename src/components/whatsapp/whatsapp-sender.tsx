@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { whatsappApi } from '@/services/supabase-api';
+import { whatsappApiEnhanced } from '@/services/whatsapp-api-enhanced';
 import { WhatsAppTemplate, OrderWithRelations } from '@/types/database';
 import { getMessageStatusColor } from '@/lib/utils';
 import {
@@ -34,7 +34,8 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  XCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -76,7 +77,7 @@ function TemplatePreview({ template, variables }: TemplatePreviewProps) {
   );
 }
 
-function MessageHistory({ messages }: { messages: any[] }) {
+function MessageHistory({ messages }: { messages: Array<{ id: string; status: string; created_at: string; content: string }> }) {
   if (messages.length === 0) {
     return (
       <div className="text-center py-4 text-muted-foreground">
@@ -119,27 +120,30 @@ function MessageHistory({ messages }: { messages: any[] }) {
 }
 
 export function WhatsAppSender({ order, onMessageSent }: WhatsAppSenderProps) {
+  const queryClient = useQueryClient();
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [variables, setVariables] = useState<Record<string, string>>({});
-  const [showPreview, setShowPreview] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
 
   // Load templates
   const { data: templatesResponse, isLoading: templatesLoading } = useQuery({
-    queryKey: ['whatsapp', 'templates'],
-    queryFn: () => whatsappApi.getTemplates()
+    queryKey: ['whatsapp-templates-enhanced'],
+    queryFn: () => whatsappApiEnhanced.getTemplates()
   });
 
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: ({ templateId, variables }: { templateId: string; variables: Record<string, string> }) =>
-      whatsappApi.sendMessage(order.owner_id, order.id, templateId, variables, order.owner.phone),
+      whatsappApiEnhanced.sendMessage(order.owner_id, order.id, templateId, variables, order.owner.phone),
     onSuccess: () => {
       toast.success('Mensaje enviado exitosamente');
       setSelectedTemplateId('');
       setVariables({});
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-messages-enhanced'] });
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-stats'] });
       onMessageSent?.();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error.message || 'Error al enviar mensaje');
     }
   });

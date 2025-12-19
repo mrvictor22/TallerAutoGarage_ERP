@@ -472,7 +472,7 @@ export function WhatsAppManagementContent({
                     value={selectedTemplate.category}
                     onValueChange={(value) => setSelectedTemplate({
                       ...selectedTemplate,
-                      category: value as any
+                      category: value as 'order_status' | 'appointment' | 'reminder' | 'notification' | 'marketing'
                     })}
                     disabled={!isEditingTemplate}
                   >
