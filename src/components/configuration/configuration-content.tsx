@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { configApi, usersApi } from '@/services/api';
-import { WorkshopConfig, User } from '@/types';
+import { WorkshopConfig } from '@/types';
+import { Profile } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,7 +59,7 @@ export function ConfigurationContent() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('taller');
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [isEditingUser, setIsEditingUser] = useState(false);
 
   // Fetch workshop config
@@ -73,12 +74,12 @@ export function ConfigurationContent() {
     queryFn: () => usersApi.getUsers()
   });
 
-  const users = usersResponse?.data || [];
+  const users = (usersResponse?.data || []) as unknown as Profile[];
 
   // User columns
-  const userColumns: ColumnDef<User>[] = [
+  const userColumns: ColumnDef<Profile>[] = [
     {
-      accessorKey: 'name',
+      accessorKey: 'full_name',
       header: 'Usuario',
       cell: ({ row }) => {
         const user = row.original;
@@ -86,11 +87,11 @@ export function ConfigurationContent() {
           <div className="flex items-center gap-2">
             <div className="flex-shrink-0 w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
               <span className="text-sm font-medium">
-                {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                {user.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
               </span>
             </div>
             <div>
-              <div className="font-medium">{user.name}</div>
+              <div className="font-medium">{user.full_name}</div>
               <div className="text-sm text-muted-foreground">{user.email}</div>
             </div>
           </div>
@@ -117,10 +118,10 @@ export function ConfigurationContent() {
       },
     },
     {
-      accessorKey: 'isActive',
+      accessorKey: 'is_active',
       header: 'Estado',
       cell: ({ row }) => {
-        const isActive = row.getValue('isActive') as boolean;
+        const isActive = row.getValue('is_active') as boolean;
         return (
           <Badge variant={isActive ? 'default' : 'secondary'}>
             {isActive ? 'Activo' : 'Inactivo'}
@@ -167,13 +168,13 @@ export function ConfigurationContent() {
     },
   ];
 
-  const handleViewUser = (user: User) => {
+  const handleViewUser = (user: Profile) => {
     setSelectedUser(user);
     setIsEditingUser(false);
     setIsUserDialogOpen(true);
   };
 
-  const handleEditUser = (user: User) => {
+  const handleEditUser = (user: Profile) => {
     setSelectedUser(user);
     setIsEditingUser(true);
     setIsUserDialogOpen(true);
@@ -182,12 +183,15 @@ export function ConfigurationContent() {
   const handleNewUser = () => {
     setSelectedUser({
       id: `user_${Date.now()}`,
-      name: '',
+      full_name: '',
       email: '',
       role: 'technician',
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      is_active: true,
+      avatar_url: null,
+      phone: null,
+      permissions: {},
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     });
     setIsEditingUser(true);
     setIsUserDialogOpen(true);
@@ -304,7 +308,7 @@ export function ConfigurationContent() {
                     <Input
                       id="open-time"
                       type="time"
-                      defaultValue={config?.businessHours?.open || '08:00'}
+                      defaultValue={(config?.business_hours as any)?.open || '08:00'}
                     />
                   </div>
                   <div>
@@ -312,7 +316,7 @@ export function ConfigurationContent() {
                     <Input
                       id="close-time"
                       type="time"
-                      defaultValue={config?.businessHours?.close || '17:00'}
+                      defaultValue={(config?.business_hours as any)?.close || '17:00'}
                     />
                   </div>
                 </div>
@@ -323,7 +327,7 @@ export function ConfigurationContent() {
                       <div key={day} className="flex items-center space-x-2">
                         <Switch
                           id={`day-${index}`}
-                          defaultChecked={config?.businessHours?.workingDays?.includes(index) ?? index < 6}
+                          defaultChecked={(config?.business_hours as any)?.workingDays?.includes(index) ?? index < 6}
                         />
                         <Label htmlFor={`day-${index}`} className="text-sm">
                           {day}
@@ -345,13 +349,13 @@ export function ConfigurationContent() {
                   <Label htmlFor="tax-id">NIT/RUC</Label>
                   <Input
                     id="tax-id"
-                    defaultValue={config?.taxId || ''}
+                    defaultValue={config?.tax_id || ''}
                     placeholder="1234567890123"
                   />
                 </div>
                 <div>
                   <Label htmlFor="tax-regime">Régimen Fiscal</Label>
-                  <Select defaultValue={config?.taxRegime || 'general'}>
+                  <Select defaultValue={config?.tax_regime || 'general'}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -386,7 +390,7 @@ export function ConfigurationContent() {
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="whatsapp-enabled"
-                    defaultChecked={config?.whatsapp?.enabled ?? true}
+                    defaultChecked={config?.whatsapp_enabled ?? true}
                   />
                   <Label htmlFor="whatsapp-enabled">
                     Habilitar notificaciones WhatsApp
@@ -396,7 +400,7 @@ export function ConfigurationContent() {
                   <Label htmlFor="whatsapp-number">Número WhatsApp Business</Label>
                   <Input
                     id="whatsapp-number"
-                    defaultValue={config?.whatsapp?.businessNumber || ''}
+                    defaultValue={config?.whatsapp_business_number || ''}
                     placeholder="(503) 1234-5678"
                   />
                 </div>
@@ -405,7 +409,7 @@ export function ConfigurationContent() {
                   <Input
                     id="whatsapp-token"
                     type="password"
-                    defaultValue={config?.whatsapp?.apiToken || ''}
+                    defaultValue={config?.whatsapp_api_token || ''}
                     placeholder="Token de WhatsApp Business API"
                   />
                 </div>
@@ -433,7 +437,7 @@ export function ConfigurationContent() {
           <DataTable
             columns={userColumns}
             data={users}
-            searchKey="name"
+            searchKey="full_name"
             searchPlaceholder="Buscar usuarios..."
           />
         </TabsContent>
@@ -611,29 +615,29 @@ export function ConfigurationContent() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {isEditingUser 
-                ? (selectedUser?.name ? 'Editar Usuario' : 'Nuevo Usuario')
+              {isEditingUser
+                ? (selectedUser?.full_name ? 'Editar Usuario' : 'Nuevo Usuario')
                 : 'Detalles del Usuario'
               }
             </DialogTitle>
             <DialogDescription>
-              {isEditingUser 
+              {isEditingUser
                 ? 'Configura la información y permisos del usuario'
                 : 'Información del usuario del sistema'
               }
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedUser && (
             <div className="space-y-4">
               <div>
                 <Label htmlFor="user-name">Nombre Completo</Label>
                 <Input
                   id="user-name"
-                  value={selectedUser.name}
+                  value={selectedUser.full_name}
                   onChange={(e) => setSelectedUser({
                     ...selectedUser,
-                    name: e.target.value
+                    full_name: e.target.value
                   })}
                   disabled={!isEditingUser}
                 />
@@ -675,10 +679,10 @@ export function ConfigurationContent() {
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="user-active"
-                    checked={selectedUser.isActive}
+                    checked={selectedUser.is_active}
                     onCheckedChange={(checked) => setSelectedUser({
                       ...selectedUser,
-                      isActive: checked
+                      is_active: checked
                     })}
                   />
                   <Label htmlFor="user-active">Usuario activo</Label>

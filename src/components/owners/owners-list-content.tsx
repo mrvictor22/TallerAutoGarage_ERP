@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
-import { ownersApi } from '@/services/api';
-import { OwnerWithRelations, OwnerFilters, OwnerType } from '@/types';
+import { ownersApi } from '@/services/supabase-api';
+import { OwnerWithRelations, OwnerType } from '@/types/database';
+import { OwnerFilters } from '@/services/supabase-api';
 import { DataTable } from '@/components/tables/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -57,7 +58,7 @@ export function OwnersListContent() {
     queryFn: () => ownersApi.getOwners(filters, 1, 50)
   });
 
-  const owners = ownersResponse?.data?.data || [];
+  const owners = ownersResponse?.success && ownersResponse.data ? ownersResponse.data.data : [];
 
   // Table columns
   const columns: ColumnDef<OwnerWithRelations>[] = [
@@ -77,8 +78,8 @@ export function OwnersListContent() {
             </div>
             <div>
               <div className="font-medium">{owner.name}</div>
-              {owner.taxId && (
-                <div className="text-sm text-muted-foreground">{owner.taxId}</div>
+              {owner.tax_id && (
+                <div className="text-sm text-muted-foreground">{owner.tax_id}</div>
               )}
             </div>
           </div>
@@ -107,7 +108,7 @@ export function OwnersListContent() {
             <div className="flex items-center gap-2 text-sm">
               <Phone className="h-3 w-3 text-muted-foreground" />
               <span>{formatPhone(owner.phone)}</span>
-              {owner.whatsappConsent && (
+              {owner.whatsapp_consent && (
                 <Badge variant="secondary" className="text-xs">WhatsApp</Badge>
               )}
             </div>
@@ -125,7 +126,7 @@ export function OwnersListContent() {
       accessorKey: 'vehicles',
       header: 'Vehículos',
       cell: ({ row }) => {
-        const vehicles = row.original.vehicles;
+        const vehicles = row.original.vehicles || [];
         return (
           <div className="flex items-center gap-2">
             <Car className="h-4 w-4 text-muted-foreground" />
@@ -144,7 +145,7 @@ export function OwnersListContent() {
       accessorKey: 'orders',
       header: 'Órdenes',
       cell: ({ row }) => {
-        const orders = row.original.orders;
+        const orders = row.original.orders || [];
         return (
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-muted-foreground" />
@@ -157,7 +158,7 @@ export function OwnersListContent() {
       accessorKey: 'tags',
       header: 'Etiquetas',
       cell: ({ row }) => {
-        const tags = row.original.tags;
+        const tags = row.original.tags || [];
         return (
           <div className="flex flex-wrap gap-1">
             {tags.slice(0, 2).map((tag) => (
@@ -195,7 +196,7 @@ export function OwnersListContent() {
                 <Edit className="mr-2 h-4 w-4" />
                 Editar
               </DropdownMenuItem>
-              {owner.whatsappConsent && (
+              {owner.whatsapp_consent && (
                 <DropdownMenuItem onClick={() => handleSendMessage(owner)}>
                   <MessageSquare className="mr-2 h-4 w-4" />
                   Enviar WhatsApp
@@ -233,10 +234,10 @@ export function OwnersListContent() {
       'Teléfono': owner.phone,
       'Email': owner.email || '',
       'Dirección': owner.address || '',
-      'WhatsApp': owner.whatsappConsent ? 'Sí' : 'No',
-      'Vehículos': owner.vehicles.length,
-      'Órdenes': owner.orders.length,
-      'Etiquetas': owner.tags.join(', ')
+      'WhatsApp': owner.whatsapp_consent ? 'Sí' : 'No',
+      'Vehículos': owner.vehicles?.length || 0,
+      'Órdenes': owner.orders?.length || 0,
+      'Etiquetas': owner.tags?.join(', ') || ''
     }));
 
     // Simple CSV export
@@ -264,19 +265,19 @@ export function OwnersListContent() {
     setFilters({});
   };
 
-  const hasActiveFilters = Object.values(filters).some(value => 
+  const hasActiveFilters = Object.values(filters).some(value =>
     value !== undefined && value !== '' && (!Array.isArray(value) || value.length > 0)
   );
 
   // Get unique tags for filter
-  const allTags = Array.from(new Set(owners.flatMap(owner => owner.tags)));
+  const allTags = Array.from(new Set(owners.flatMap(owner => owner.tags || [])));
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t('owners.title')}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
           <p className="text-muted-foreground">
             Gestiona la información de clientes y empresas
           </p>
@@ -293,7 +294,7 @@ export function OwnersListContent() {
           </Button>
           <Button onClick={handleNewOwner}>
             <Plus className="mr-2 h-4 w-4" />
-            {t('owners.newOwner')}
+            Nuevo Cliente
           </Button>
         </div>
       </div>
@@ -366,8 +367,8 @@ export function OwnersListContent() {
               <div className="flex items-center space-x-2 pt-6">
                 <Checkbox
                   id="whatsapp"
-                  checked={filters.hasWhatsappConsent || false}
-                  onCheckedChange={(checked) => updateFilter('hasWhatsappConsent', checked || undefined)}
+                  checked={filters.has_whatsapp_consent || false}
+                  onCheckedChange={(checked) => updateFilter('has_whatsapp_consent', checked || undefined)}
                 />
                 <Label htmlFor="whatsapp" className="text-sm">
                   Solo con WhatsApp
@@ -411,7 +412,7 @@ export function OwnersListContent() {
               <div className="ml-2">
                 <p className="text-sm font-medium text-muted-foreground">Con WhatsApp</p>
                 <p className="text-2xl font-bold">
-                  {owners.filter(o => o.whatsappConsent).length}
+                  {owners.filter(o => o.whatsapp_consent).length}
                 </p>
               </div>
             </div>
@@ -424,7 +425,7 @@ export function OwnersListContent() {
               <div className="ml-2">
                 <p className="text-sm font-medium text-muted-foreground">Total Vehículos</p>
                 <p className="text-2xl font-bold">
-                  {owners.reduce((sum, owner) => sum + owner.vehicles.length, 0)}
+                  {owners.reduce((sum, owner) => sum + (owner.vehicles?.length || 0), 0)}
                 </p>
               </div>
             </div>
@@ -448,7 +449,7 @@ export function OwnersListContent() {
           <User className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
           <h3 className="text-lg font-medium mb-2">No hay clientes</h3>
           <p className="text-muted-foreground mb-4">
-            {hasActiveFilters 
+            {hasActiveFilters
               ? 'No se encontraron clientes con los filtros aplicados'
               : 'Comienza agregando tu primer cliente'
             }

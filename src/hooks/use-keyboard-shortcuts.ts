@@ -17,7 +17,7 @@ interface KeyboardShortcut {
 
 export function useKeyboardShortcuts(scope: 'global' | 'orders' | 'owners' | 'vehicles' = 'global') {
   const router = useRouter();
-  const { user, hasPermission } = useAuthStore();
+  const { user, isAdmin } = useAuthStore();
   const { toggleSidebar, toggleTheme } = useUIStore();
 
   const shortcuts: KeyboardShortcut[] = [
@@ -92,7 +92,7 @@ export function useKeyboardShortcuts(scope: 'global' | 'orders' | 'owners' | 've
       ctrlKey: true,
       altKey: true,
       action: () => {
-        if (hasPermission('admin')) {
+        if (isAdmin()) {
           router.push('/configuracion');
         }
       },
@@ -164,7 +164,7 @@ export function useKeyboardShortcuts(scope: 'global' | 'orders' | 'owners' | 've
         break;
       }
     }
-  }, [shortcuts, scope, router, toggleSidebar, toggleTheme, hasPermission]);
+  }, [shortcuts, scope, router, toggleSidebar, toggleTheme, isAdmin]);
 
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown);

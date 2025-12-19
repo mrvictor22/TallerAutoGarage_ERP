@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { whatsappApi, ownersApi } from '@/services/api';
-import { WhatsAppTemplate, WhatsAppMessage, OwnerWithRelations } from '@/types';
+import { whatsappApi, ownersApi } from '@/services/supabase-api';
+import { WhatsAppTemplate, WhatsAppMessage, OwnerWithRelations } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -80,17 +80,17 @@ export function WhatsAppManagementContent({
   // Fetch message history
   const { data: messagesResponse, isLoading: messagesLoading } = useQuery({
     queryKey: ['whatsapp-messages'],
-    queryFn: () => whatsappApi.getMessages({}, 1, 50)
+    queryFn: () => whatsappApi.getMessages()
   });
 
   // Fetch owners with WhatsApp consent
   const { data: ownersResponse } = useQuery({
-    queryKey: ['owners', { hasWhatsappConsent: true }],
-    queryFn: () => ownersApi.getOwners({ hasWhatsappConsent: true }, 1, 100)
+    queryKey: ['owners', { has_whatsapp_consent: true }],
+    queryFn: () => ownersApi.getOwners({ has_whatsapp_consent: true }, 1, 100)
   });
 
   const templates = templatesResponse?.data || [];
-  const messages = messagesResponse?.data?.data || [];
+  const messages = messagesResponse?.data || [];
   const owners = ownersResponse?.data?.data || [];
 
   // Template columns
@@ -119,10 +119,10 @@ export function WhatsAppManagementContent({
       },
     },
     {
-      accessorKey: 'isActive',
+      accessorKey: 'is_active',
       header: 'Estado',
       cell: ({ row }) => {
-        const isActive = row.getValue('isActive') as boolean;
+        const isActive = row.getValue('is_active') as boolean;
         return (
           <Badge variant={isActive ? 'default' : 'secondary'}>
             {isActive ? 'Activa' : 'Inactiva'}
@@ -179,27 +179,34 @@ export function WhatsAppManagementContent({
   // Message columns
   const messageColumns: ColumnDef<WhatsAppMessage>[] = [
     {
-      accessorKey: 'recipientName',
+      accessorKey: 'phone_number',
       header: 'Destinatario',
       cell: ({ row }) => {
         const message = row.original;
+        // Try to find owner name from the owners list
+        const owner = owners.find(o => o.id === message.owner_id);
         return (
           <div>
-            <div className="font-medium">{message.recipientName}</div>
+            <div className="font-medium">{owner?.name || 'Cliente'}</div>
             <div className="text-sm text-muted-foreground flex items-center gap-1">
               <Phone className="h-3 w-3" />
-              {formatPhone(message.recipientPhone)}
+              {formatPhone(message.phone_number)}
             </div>
           </div>
         );
       },
     },
     {
-      accessorKey: 'templateName',
+      accessorKey: 'template_id',
       header: 'Plantilla',
-      cell: ({ row }) => (
-        <Badge variant="outline">{row.getValue('templateName')}</Badge>
-      ),
+      cell: ({ row }) => {
+        const message = row.original;
+        // Try to find template name from templates list
+        const template = templates.find(t => t.id === message.template_id);
+        return (
+          <Badge variant="outline">{template?.name || 'Sin plantilla'}</Badge>
+        );
+      },
     },
     {
       accessorKey: 'status',
@@ -225,11 +232,11 @@ export function WhatsAppManagementContent({
       },
     },
     {
-      accessorKey: 'sentAt',
+      accessorKey: 'sent_at',
       header: 'Enviado',
       cell: ({ row }) => {
-        const date = row.getValue('sentAt') as string;
-        return <span className="text-sm">{formatDate(date)}</span>;
+        const date = row.getValue('sent_at') as string | null;
+        return <span className="text-sm">{date ? formatDate(date) : 'Pendiente'}</span>;
       },
     },
     {
@@ -259,11 +266,11 @@ export function WhatsAppManagementContent({
   };
 
   const handleDuplicateTemplate = (template: WhatsAppTemplate) => {
-    const duplicated = {
+    const duplicated: WhatsAppTemplate = {
       ...template,
       id: `template_${Date.now()}`,
       name: `${template.name} (Copia)`,
-      isActive: false
+      is_active: false
     };
     setSelectedTemplate(duplicated);
     setIsEditingTemplate(true);
@@ -277,7 +284,10 @@ export function WhatsAppManagementContent({
       content: '',
       category: 'general',
       variables: [],
-      isActive: true
+      language: 'es',
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     });
     setIsEditingTemplate(true);
     setIsTemplateDialogOpen(true);
@@ -330,8 +340,8 @@ export function WhatsAppManagementContent({
               <div className="ml-2">
                 <p className="text-sm font-medium text-muted-foreground">Enviados Hoy</p>
                 <p className="text-2xl font-bold">
-                  {messages.filter(m => 
-                    new Date(m.sentAt).toDateString() === new Date().toDateString()
+                  {messages.filter((m: WhatsAppMessage) =>
+                    m.sent_at && new Date(m.sent_at).toDateString() === new Date().toDateString()
                   ).length}
                 </p>
               </div>
@@ -356,8 +366,8 @@ export function WhatsAppManagementContent({
               <div className="ml-2">
                 <p className="text-sm font-medium text-muted-foreground">Tasa Entrega</p>
                 <p className="text-2xl font-bold">
-                  {messages.length > 0 
-                    ? Math.round((messages.filter(m => m.status === 'delivered').length / messages.length) * 100)
+                  {messages.length > 0
+                    ? Math.round((messages.filter((m: WhatsAppMessage) => m.status === 'delivered').length / messages.length) * 100)
                     : 0
                   }%
                 </p>
@@ -380,10 +390,16 @@ export function WhatsAppManagementContent({
         </TabsList>
 
         <TabsContent value="enviar" className="space-y-6">
-          <WhatsAppSender 
-            recipientId={preselectedOwnerId}
-            recipientType="owner"
-          />
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center py-8 text-muted-foreground">
+                <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-sm">
+                  Para enviar mensajes WhatsApp, selecciona una orden desde el detalle de la orden.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="plantillas" className="space-y-6">
@@ -411,7 +427,7 @@ export function WhatsAppManagementContent({
           <DataTable
             columns={messageColumns}
             data={messages}
-            searchKey="recipientName"
+            searchKey="phone_number"
             searchPlaceholder="Buscar por destinatario..."
           />
         </TabsContent>
@@ -488,7 +504,7 @@ export function WhatsAppManagementContent({
                   placeholder="Escribe el contenido del mensaje aquí. Usa {{variable}} para variables dinámicas."
                 />
                 <p className="text-sm text-muted-foreground mt-2">
-                  Variables disponibles: {{nombre}}, {{vehiculo}}, {{orden}}, {{fecha}}, {{monto}}
+                  Variables disponibles: cliente, vehiculo, ordenId, fecha, total
                 </p>
               </div>
 
@@ -496,10 +512,10 @@ export function WhatsAppManagementContent({
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="template-active"
-                    checked={selectedTemplate.isActive}
+                    checked={selectedTemplate.is_active}
                     onCheckedChange={(checked) => setSelectedTemplate({
                       ...selectedTemplate,
-                      isActive: checked
+                      is_active: checked
                     })}
                   />
                   <Label htmlFor="template-active">Plantilla activa</Label>

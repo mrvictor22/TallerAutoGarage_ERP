@@ -615,21 +615,25 @@ export const configApi = {
 
 // Mock workshop config
 const mockWorkshopConfig: WorkshopConfig = {
+  id: '1',
   name: 'Taller Automotriz El Salvador',
   address: 'Av. Principal #123, San Salvador, El Salvador',
   phone: '(503) 2234-5678',
   email: 'contacto@tallerelsalvador.com',
-  taxId: '1234567890123',
-  taxRegime: 'general',
+  tax_id: '1234567890123',
+  tax_regime: 'general',
   currency: 'USD',
-  businessHours: {
+  logo_url: null,
+  business_hours: {
     open: '08:00',
     close: '17:00',
     workingDays: [0, 1, 2, 3, 4, 5] // Monday to Saturday
   },
-  whatsapp: {
-    enabled: true,
-    businessNumber: '(503) 7234-5678',
-    apiToken: 'whatsapp_token_placeholder'
-  }
+  order_prefix: 'ORD',
+  order_counter: 3,
+  whatsapp_enabled: true,
+  whatsapp_business_number: '(503) 7234-5678',
+  whatsapp_api_token: 'whatsapp_token_placeholder',
+  created_at: '2024-01-01T00:00:00.000Z',
+  updated_at: '2024-01-01T00:00:00.000Z'
 };

@@ -12,6 +12,8 @@ import {
   ColumnFiltersState,
   SortingState,
   VisibilityState,
+  Table as TableType,
+  Row,
 } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -70,14 +72,14 @@ export function DataTable<TData, TValue>({
     ? [
         {
           id: 'select',
-          header: ({ table }) => (
+          header: ({ table }: { table: TableType<TData> }) => (
             <Checkbox
               checked={table.getIsAllPageRowsSelected()}
               onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
               aria-label="Seleccionar todo"
             />
           ),
-          cell: ({ row }) => (
+          cell: ({ row }: { row: Row<TData> }) => (
             <Checkbox
               checked={row.getIsSelected()}
               onCheckedChange={(value) => row.toggleSelected(!!value)}
@@ -136,7 +138,7 @@ export function DataTable<TData, TValue>({
             <div className="relative max-w-sm">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder={searchPlaceholder || t('common.search')}
+                placeholder={searchPlaceholder || 'Buscar'}
                 value={(table.getColumn(searchKey)?.getFilterValue() as string) ?? ''}
                 onChange={(event) =>
                   table.getColumn(searchKey)?.setFilterValue(event.target.value)
@@ -156,7 +158,7 @@ export function DataTable<TData, TValue>({
           {onExport && (
             <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="mr-2 h-4 w-4" />
-              {t('common.export') || 'Exportar'}
+              Exportar
             </Button>
           )}
           <DropdownMenu>
@@ -232,7 +234,7 @@ export function DataTable<TData, TValue>({
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  {t('common.noResults') || 'No se encontraron resultados'}
+                  No se encontraron resultados
                 </TableCell>
               </TableRow>
             )}

@@ -427,13 +427,22 @@ export const mockWorkshopConfig: WorkshopConfig = {
   address: 'Blvd. Los Héroes, San Salvador',
   phone: '+503 2234-5678',
   email: 'info@tallerelsalvador.com',
-  taxId: '0614-150284-001-3',
-  orderPrefix: 'ORD',
-  orderCounter: 3,
+  tax_id: '0614-150284-001-3',
+  tax_regime: 'general',
   currency: 'USD',
-  taxRate: 13,
-  createdAt: new Date('2024-01-01'),
-  updatedAt: new Date('2024-01-01')
+  logo_url: null,
+  business_hours: {
+    open: '08:00',
+    close: '17:00',
+    workingDays: [0, 1, 2, 3, 4, 5]
+  },
+  order_prefix: 'ORD',
+  order_counter: 3,
+  whatsapp_enabled: true,
+  whatsapp_business_number: '+503 7234-5678',
+  whatsapp_api_token: null,
+  created_at: '2024-01-01T00:00:00.000Z',
+  updated_at: '2024-01-01T00:00:00.000Z'
 };
 
 // Mock Dashboard KPIs

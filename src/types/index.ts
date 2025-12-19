@@ -188,22 +188,7 @@ export interface User {
   updatedAt: Date;
 }
 
-// Workshop configuration
-export interface WorkshopConfig {
-  id: string;
-  name: string;
-  address: string;
-  phone: string;
-  email: string;
-  taxId: string;
-  logo?: string;
-  orderPrefix: string;
-  orderCounter: number;
-  currency: string;
-  taxRate: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
+// Workshop configuration (removed - see below for actual definition)
 
 // Catalog entities
 export interface OrderStatusConfig {
@@ -231,23 +216,23 @@ export interface TaxConfig {
 }
 
 export interface WorkshopConfig {
+  id: string;
   name: string;
-  address: string;
-  phone: string;
-  email: string;
-  taxId: string;
-  taxRegime: 'general' | 'simplified' | 'small';
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  tax_id: string | null;
+  tax_regime: string;
   currency: string;
-  businessHours: {
-    open: string;
-    close: string;
-    workingDays: number[];
-  };
-  whatsapp: {
-    enabled: boolean;
-    businessNumber: string;
-    apiToken: string;
-  };
+  logo_url: string | null;
+  business_hours: any;
+  order_prefix: string;
+  order_counter: number;
+  whatsapp_enabled: boolean;
+  whatsapp_business_number: string | null;
+  whatsapp_api_token: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // API Response types

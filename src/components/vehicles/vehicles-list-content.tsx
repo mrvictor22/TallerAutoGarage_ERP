@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
-import { vehiclesApi } from '@/services/api';
-import { VehicleWithRelations, VehicleFilters } from '@/types';
+import { vehiclesApi, VehicleFilters } from '@/services/supabase-api';
+import { VehicleWithRelations } from '@/types/database';
 import { DataTable } from '@/components/tables/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -48,12 +48,18 @@ export function VehiclesListContent() {
   const [showFilters, setShowFilters] = useState(false);
 
   // Fetch vehicles
-  const { data: vehiclesResponse, isLoading } = useQuery({
+  const { data: vehiclesResponse, isLoading, error } = useQuery({
     queryKey: ['vehicles', filters],
     queryFn: () => vehiclesApi.getVehicles(filters, 1, 50)
   });
 
-  const vehicles = vehiclesResponse?.data?.data || [];
+  const vehicles = vehiclesResponse?.success ? vehiclesResponse.data?.data || [] : [];
+
+  // Show error toast if there's an error
+  if (error || (vehiclesResponse && !vehiclesResponse.success)) {
+    const errorMessage = vehiclesResponse?.error || 'Error al cargar vehículos';
+    toast.error(errorMessage);
+  }
 
   // Table columns
   const columns: ColumnDef<VehicleWithRelations>[] = [
@@ -93,6 +99,9 @@ export function VehiclesListContent() {
       header: 'Propietario',
       cell: ({ row }) => {
         const owner = row.original.owner;
+        if (!owner) {
+          return <span className="text-muted-foreground">Sin propietario</span>;
+        }
         return (
           <div className="flex items-center gap-2">
             <User className="h-4 w-4 text-muted-foreground" />
@@ -112,7 +121,7 @@ export function VehiclesListContent() {
         return (
           <div className="flex items-center gap-2">
             <Gauge className="h-4 w-4 text-muted-foreground" />
-            <span>{mileage?.toLocaleString()} km</span>
+            <span>{mileage ? mileage.toLocaleString() : 'N/A'} km</span>
           </div>
         );
       },
@@ -121,8 +130,8 @@ export function VehiclesListContent() {
       accessorKey: 'orders',
       header: 'Órdenes',
       cell: ({ row }) => {
-        const orders = row.original.orders;
-        const activeOrders = orders.filter(o => ['pending', 'in_progress'].includes(o.status));
+        const orders = row.original.orders || [];
+        const activeOrders = orders.filter(o => ['new', 'diagnosis', 'waiting_approval', 'approved', 'in_progress', 'waiting_parts', 'quality_check'].includes(o.status));
         return (
           <div className="flex items-center gap-2">
             <Wrench className="h-4 w-4 text-muted-foreground" />
@@ -140,17 +149,15 @@ export function VehiclesListContent() {
       accessorKey: 'lastService',
       header: 'Último Servicio',
       cell: ({ row }) => {
-        const orders = row.original.orders;
-        const lastOrder = orders
-          .filter(o => o.status === 'completed')
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-        
+        const vehicle = row.original;
+        const lastServiceDate = vehicle.last_service_date;
+
         return (
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm">
-              {lastOrder 
-                ? new Date(lastOrder.createdAt).toLocaleDateString('es-SV')
+              {lastServiceDate
+                ? new Date(lastServiceDate).toLocaleDateString('es-SV')
                 : 'Sin servicios'
               }
             </span>
@@ -213,13 +220,13 @@ export function VehiclesListContent() {
       'Marca': vehicle.brand,
       'Modelo': vehicle.model,
       'Año': vehicle.year,
-      'Color': vehicle.color,
-      'VIN': vehicle.vin,
-      'Kilometraje': vehicle.mileage,
-      'Propietario': vehicle.owner.name,
-      'Teléfono': vehicle.owner.phone,
-      'Órdenes': vehicle.orders.length,
-      'Última Actualización': new Date(vehicle.updatedAt).toLocaleDateString('es-SV')
+      'Color': vehicle.color || '',
+      'VIN': vehicle.vin || '',
+      'Kilometraje': vehicle.mileage || '',
+      'Propietario': vehicle.owner?.name || '',
+      'Teléfono': vehicle.owner?.phone || '',
+      'Órdenes': vehicle.orders?.length || 0,
+      'Última Actualización': new Date(vehicle.updated_at).toLocaleDateString('es-SV')
     }));
 
     // Simple CSV export
@@ -247,7 +254,7 @@ export function VehiclesListContent() {
     setFilters({});
   };
 
-  const hasActiveFilters = Object.values(filters).some(value => 
+  const hasActiveFilters = Object.values(filters).some(value =>
     value !== undefined && value !== '' && (!Array.isArray(value) || value.length > 0)
   );
 
@@ -260,7 +267,7 @@ export function VehiclesListContent() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t('vehicles.title')}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Vehículos</h1>
           <p className="text-muted-foreground">
             Gestiona el inventario de vehículos del taller
           </p>
@@ -277,7 +284,7 @@ export function VehiclesListContent() {
           </Button>
           <Button onClick={handleNewVehicle}>
             <Plus className="mr-2 h-4 w-4" />
-            {t('vehicles.newVehicle')}
+            Nuevo Vehículo
           </Button>
         </div>
       </div>
@@ -355,8 +362,8 @@ export function VehiclesListContent() {
                 <Input
                   id="owner"
                   placeholder="Nombre del propietario..."
-                  value={filters.ownerName || ''}
-                  onChange={(e) => updateFilter('ownerName', e.target.value)}
+                  value={filters.owner_id || ''}
+                  onChange={(e) => updateFilter('owner_id', e.target.value)}
                 />
               </div>
             </div>
@@ -384,8 +391,8 @@ export function VehiclesListContent() {
               <div className="ml-2">
                 <p className="text-sm font-medium text-muted-foreground">En Servicio</p>
                 <p className="text-2xl font-bold">
-                  {vehicles.filter(v => 
-                    v.orders.some(o => ['pending', 'in_progress'].includes(o.status))
+                  {vehicles.filter(v =>
+                    v.orders?.some(o => ['new', 'diagnosis', 'waiting_approval', 'approved', 'in_progress', 'waiting_parts', 'quality_check'].includes(o.status))
                   ).length}
                 </p>
               </div>
@@ -399,7 +406,7 @@ export function VehiclesListContent() {
               <div className="ml-2">
                 <p className="text-sm font-medium text-muted-foreground">Propietarios</p>
                 <p className="text-2xl font-bold">
-                  {new Set(vehicles.map(v => v.owner.id)).size}
+                  {new Set(vehicles.map(v => v.owner_id)).size}
                 </p>
               </div>
             </div>
@@ -434,7 +441,7 @@ export function VehiclesListContent() {
           <Car className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
           <h3 className="text-lg font-medium mb-2">No hay vehículos</h3>
           <p className="text-muted-foreground mb-4">
-            {hasActiveFilters 
+            {hasActiveFilters
               ? 'No se encontraron vehículos con los filtros aplicados'
               : 'Comienza agregando el primer vehículo'
             }

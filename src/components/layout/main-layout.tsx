@@ -32,11 +32,11 @@ export function MainLayout({ children }: MainLayoutProps) {
   }
 
   return (
-    <div className="flex h-screen bg-background" ref={containerRef}>
+    <div className="flex h-screen bg-background" ref={containerRef as React.RefObject<HTMLDivElement>}>
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
-        <main 
+        <main
           className="flex-1 overflow-auto p-6"
           role="main"
           aria-label="Contenido principal"

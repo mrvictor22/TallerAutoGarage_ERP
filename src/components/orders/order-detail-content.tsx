@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { ordersApi, timelineApi } from '@/services/api';
-import { OrderWithRelations, TimelineEntry } from '@/types';
+import { ordersApi, timelineApi } from '@/services/supabase-api';
+import { OrderWithRelations, TimelineEntry as DBTimelineEntry, TimelineEntryInsert } from '@/types/database';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -58,9 +58,27 @@ interface OrderDetailContentProps {
   defaultTab?: string;
 }
 
+// Map database timeline entry to component timeline entry format
+function mapTimelineEntry(entry: DBTimelineEntry & { author?: { full_name: string } }): any {
+  return {
+    id: entry.id,
+    orderId: entry.order_id,
+    type: entry.type,
+    title: entry.title,
+    description: entry.description || '',
+    timeSpentMinutes: entry.time_spent_minutes,
+    authorId: entry.author_id,
+    authorName: entry.author?.full_name || 'Usuario',
+    attachments: entry.attachments || [],
+    tags: entry.tags || [],
+    checklist: entry.checklist as any,
+    createdAt: new Date(entry.created_at)
+  };
+}
+
 function OrderSummary({ order }: { order: OrderWithRelations }) {
   const queryClient = useQueryClient();
-  
+
   const updateStatusMutation = useMutation({
     mutationFn: ({ status, notes }: { status: string; notes?: string }) =>
       ordersApi.updateOrderStatus(order.id, status as any, notes),
@@ -68,8 +86,8 @@ function OrderSummary({ order }: { order: OrderWithRelations }) {
       queryClient.invalidateQueries({ queryKey: ['orders', order.id] });
       toast.success('Estado actualizado exitosamente');
     },
-    onError: () => {
-      toast.error('Error al actualizar estado');
+    onError: (error: any) => {
+      toast.error(error?.message || 'Error al actualizar estado');
     }
   });
 
@@ -77,11 +95,14 @@ function OrderSummary({ order }: { order: OrderWithRelations }) {
     const statusMap: Record<string, string> = {
       new: 'Nuevo',
       diagnosis: 'Diagnóstico',
+      waiting_approval: 'Esperando Aprobación',
+      approved: 'Aprobado',
       in_progress: 'En Proceso',
-      waiting: 'En Espera',
-      approval: 'Aprobación',
-      finished: 'Finalizado',
-      delivered: 'Entregado'
+      waiting_parts: 'Esperando Repuestos',
+      quality_check: 'Control de Calidad',
+      ready: 'Listo',
+      delivered: 'Entregado',
+      cancelled: 'Cancelado'
     };
     return statusMap[status] || status;
   };
@@ -89,10 +110,12 @@ function OrderSummary({ order }: { order: OrderWithRelations }) {
   const statusOptions = [
     { value: 'new', label: 'Nuevo' },
     { value: 'diagnosis', label: 'Diagnóstico' },
+    { value: 'waiting_approval', label: 'Esperando Aprobación' },
+    { value: 'approved', label: 'Aprobado' },
     { value: 'in_progress', label: 'En Proceso' },
-    { value: 'waiting', label: 'En Espera' },
-    { value: 'approval', label: 'Aprobación' },
-    { value: 'finished', label: 'Finalizado' },
+    { value: 'waiting_parts', label: 'Esperando Repuestos' },
+    { value: 'quality_check', label: 'Control de Calidad' },
+    { value: 'ready', label: 'Listo' },
     { value: 'delivered', label: 'Entregado' }
   ];
 
@@ -107,7 +130,7 @@ function OrderSummary({ order }: { order: OrderWithRelations }) {
               <div>
                 <CardTitle className="text-2xl">{order.folio}</CardTitle>
                 <p className="text-muted-foreground mt-1">
-                  Creada {timeAgo(order.entryDate)} • {formatDateTime(order.entryDate)}
+                  Creada {timeAgo(order.entry_date)} • {formatDateTime(order.entry_date)}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -139,28 +162,28 @@ function OrderSummary({ order }: { order: OrderWithRelations }) {
                 <h4 className="font-medium mb-2">Motivo del Servicio</h4>
                 <p className="text-muted-foreground">{order.reason}</p>
               </div>
-              
-              {order.commitmentDate && (
+
+              {order.commitment_date && (
                 <div className="flex items-center gap-2 text-sm">
                   <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span>Fecha compromiso: {formatDate(order.commitmentDate, 'PPP')}</span>
-                  {new Date(order.commitmentDate) < new Date() && order.status !== 'delivered' && (
+                  <span>Fecha compromiso: {formatDate(order.commitment_date, 'PPP')}</span>
+                  {new Date(order.commitment_date) < new Date() && order.status !== 'delivered' && (
                     <Badge variant="destructive" className="text-xs">Vencido</Badge>
                   )}
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-4 text-sm">
-                {order.mileage && (
+                {order.entry_mileage && (
                   <div>
                     <span className="text-muted-foreground">Kilometraje:</span>
-                    <span className="ml-2 font-medium">{order.mileage.toLocaleString()} km</span>
+                    <span className="ml-2 font-medium">{order.entry_mileage.toLocaleString()} km</span>
                   </div>
                 )}
-                {order.fuelLevel && (
+                {order.fuel_level && (
                   <div>
                     <span className="text-muted-foreground">Combustible:</span>
-                    <span className="ml-2 font-medium">{order.fuelLevel}%</span>
+                    <span className="ml-2 font-medium">{order.fuel_level}%</span>
                   </div>
                 )}
               </div>
@@ -189,7 +212,7 @@ function OrderSummary({ order }: { order: OrderWithRelations }) {
                   <div className="flex items-center gap-2">
                     <Phone className="h-3 w-3" />
                     <span>{order.owner.phone}</span>
-                    {order.owner.whatsappConsent && (
+                    {order.owner.whatsapp_consent && (
                       <Badge variant="secondary" className="text-xs">WhatsApp</Badge>
                     )}
                   </div>
@@ -277,7 +300,7 @@ function OrderSummary({ order }: { order: OrderWithRelations }) {
               <Download className="mr-2 h-4 w-4" />
               Generar PDF
             </Button>
-            {order.owner.whatsappConsent && (
+            {order.owner.whatsapp_consent && (
               <Button className="w-full" variant="outline">
                 <MessageSquare className="mr-2 h-4 w-4" />
                 Enviar WhatsApp
@@ -298,27 +321,27 @@ function OrderSummary({ order }: { order: OrderWithRelations }) {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal:</span>
-                <span>{formatCurrency(order.budget.totals.subtotal)}</span>
+                <span>{formatCurrency(order.subtotal)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Impuestos:</span>
-                <span>{formatCurrency(order.budget.totals.taxAmount)}</span>
+                <span>{formatCurrency(order.tax_amount)}</span>
               </div>
-              {order.budget.totals.discountAmount > 0 && (
+              {order.discount_amount > 0 && (
                 <div className="flex justify-between text-green-600">
                   <span>Descuento:</span>
-                  <span>-{formatCurrency(order.budget.totals.discountAmount)}</span>
+                  <span>-{formatCurrency(order.discount_amount)}</span>
                 </div>
               )}
               <Separator />
               <div className="flex justify-between font-medium">
                 <span>Total:</span>
-                <span>{formatCurrency(order.budget.totals.total)}</span>
+                <span>{formatCurrency(order.total)}</span>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2">
-              {order.budget.approved ? (
+              {order.budget_approved ? (
                 <Badge variant="secondary" className="bg-green-100 text-green-800">
                   <CheckCircle className="h-3 w-3 mr-1" />
                   Aprobado
@@ -345,13 +368,13 @@ function OrderSummary({ order }: { order: OrderWithRelations }) {
             <CardContent>
               <div className="flex items-center gap-3">
                 <Avatar>
-                  <AvatarImage src="" alt={order.technician.name} />
+                  <AvatarImage src={order.technician.avatar_url || ''} alt={order.technician.full_name} />
                   <AvatarFallback>
-                    {order.technician.name.split(' ').map(n => n[0]).join('')}
+                    {order.technician.full_name.split(' ').map(n => n[0]).join('')}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <div className="font-medium">{order.technician.name}</div>
+                  <div className="font-medium">{order.technician.full_name}</div>
                   <div className="text-sm text-muted-foreground">{order.technician.email}</div>
                 </div>
               </div>
@@ -367,15 +390,15 @@ function OrderSummary({ order }: { order: OrderWithRelations }) {
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Entradas en bitácora:</span>
-              <span className="font-medium">{order.timeline.length}</span>
+              <span className="font-medium">{order.timeline_entries?.length || 0}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Mensajes enviados:</span>
-              <span className="font-medium">{order.messages.length}</span>
+              <span className="font-medium">{order.messages?.length || 0}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Facturas de repuestos:</span>
-              <span className="font-medium">{order.invoices.length}</span>
+              <span className="font-medium">{order.parts_invoices?.length || 0}</span>
             </div>
           </CardContent>
         </Card>
@@ -397,14 +420,27 @@ export function OrderDetailContent({ orderId, defaultTab = 'summary' }: OrderDet
 
   // Add timeline entry mutation
   const addTimelineEntryMutation = useMutation({
-    mutationFn: (entry: Omit<TimelineEntry, 'id' | 'orderId' | 'authorId' | 'authorName' | 'createdAt'>) =>
-      timelineApi.addEntry(orderId, entry),
+    mutationFn: (entry: Omit<any, 'id' | 'orderId' | 'authorId' | 'authorName' | 'createdAt'>) => {
+      const timelineEntry: TimelineEntryInsert = {
+        order_id: orderId,
+        type: entry.type,
+        title: entry.title,
+        description: entry.description || null,
+        time_spent_minutes: entry.timeSpentMinutes || null,
+        attachments: entry.attachments || [],
+        tags: entry.tags || [],
+        metadata: {},
+        checklist: entry.checklist || null,
+        author_id: '' // Will be set by the API
+      };
+      return timelineApi.addEntry(timelineEntry);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders', orderId] });
       toast.success('Entrada agregada exitosamente');
     },
-    onError: () => {
-      toast.error('Error al agregar entrada');
+    onError: (error: any) => {
+      toast.error(error?.message || 'Error al agregar entrada');
     }
   });
 
@@ -468,6 +504,9 @@ export function OrderDetailContent({ orderId, defaultTab = 'summary' }: OrderDet
 
   const order = orderResponse.data;
 
+  // Map timeline entries to the format expected by Timeline component
+  const mappedTimelineEntries = (order.timeline_entries || []).map(mapTimelineEntry);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -515,7 +554,7 @@ export function OrderDetailContent({ orderId, defaultTab = 'summary' }: OrderDet
             </CardHeader>
             <CardContent>
               <Timeline
-                entries={order.timeline}
+                entries={mappedTimelineEntries}
                 onAddEntry={(entry) => addTimelineEntryMutation.mutate(entry)}
                 editable={true}
               />
@@ -530,28 +569,28 @@ export function OrderDetailContent({ orderId, defaultTab = 'summary' }: OrderDet
                 <CardTitle>Facturas de Repuestos</CardTitle>
               </CardHeader>
               <CardContent>
-                {order.invoices.length > 0 ? (
+                {order.parts_invoices && order.parts_invoices.length > 0 ? (
                   <div className="space-y-4">
-                    {order.invoices.map((invoice) => (
+                    {order.parts_invoices.map((invoice) => (
                       <Card key={invoice.id} className="p-4">
                         <div className="flex items-start justify-between mb-2">
                           <div>
                             <h4 className="font-medium">{invoice.supplier}</h4>
                             <p className="text-sm text-muted-foreground">
-                              Factura #{invoice.invoiceNumber}
+                              Factura #{invoice.invoice_number || 'N/A'}
                             </p>
                           </div>
                           <div className="text-right">
                             <div className="font-medium">
-                              {formatCurrency(invoice.amount)}
+                              {formatCurrency(invoice.total)}
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              +{formatCurrency(invoice.taxAmount)} IVA
+                              +{formatCurrency(invoice.tax_amount)} IVA
                             </div>
                           </div>
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {formatDateTime(invoice.createdAt)}
+                          {formatDateTime(invoice.created_at)}
                         </div>
                       </Card>
                     ))}
@@ -584,7 +623,7 @@ export function OrderDetailContent({ orderId, defaultTab = 'summary' }: OrderDet
 
         <TabsContent value="whatsapp" className="mt-6">
           <WhatsAppSender
-            order={order}
+            order={order as any}
             onMessageSent={() => {
               queryClient.invalidateQueries({ queryKey: ['orders', orderId] });
             }}

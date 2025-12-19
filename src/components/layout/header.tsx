@@ -1,7 +1,8 @@
 'use client';
 
 import { useTheme } from 'next-themes';
-import { useAuthStore } from '@/store/auth-store';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/stores/auth';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -28,9 +29,11 @@ import {
 export function Header() {
   const { theme, setTheme } = useTheme();
   const { user, logout } = useAuthStore();
+  const router = useRouter();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
+    router.push('/login');
   };
 
   const getRoleColor = (role: string) => {
@@ -108,15 +111,15 @@ export function Header() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-10 w-auto gap-2 px-2">
               <Avatar className="h-8 w-8">
-                <AvatarImage src="" alt={user?.name || ''} />
+                <AvatarImage src={user?.avatar_url || ''} alt={user?.full_name || ''} />
                 <AvatarFallback>
-                  {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
+                  {user?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
               <div className="hidden md:flex flex-col items-start">
-                <span className="text-sm font-medium">{user?.name}</span>
-                <Badge 
-                  variant="secondary" 
+                <span className="text-sm font-medium">{user?.full_name}</span>
+                <Badge
+                  variant="secondary"
                   className={`text-xs ${getRoleColor(user?.role || '')}`}
                 >
                   {getRoleLabel(user?.role || '')}
@@ -127,7 +130,7 @@ export function Header() {
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user?.name}</p>
+                <p className="text-sm font-medium leading-none">{user?.full_name}</p>
                 <p className="text-xs leading-none text-muted-foreground">
                   {user?.email}
                 </p>
