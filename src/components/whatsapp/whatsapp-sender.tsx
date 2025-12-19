@@ -9,8 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { whatsappApi } from '@/services/api';
-import { WhatsAppTemplate, OrderWithRelations } from '@/types';
+import { whatsappApi } from '@/services/supabase-api';
+import { WhatsAppTemplate, OrderWithRelations } from '@/types/database';
 import { getMessageStatusColor } from '@/lib/utils';
 import {
   Select,
@@ -97,16 +97,16 @@ function MessageHistory({ messages }: { messages: any[] }) {
                 {message.status === 'sent' && <Send className="h-3 w-3 mr-1" />}
                 {message.status === 'delivered' && <CheckCircle className="h-3 w-3 mr-1" />}
                 {message.status === 'read' && <CheckCircle className="h-3 w-3 mr-1" />}
-                {message.status === 'error' && <AlertCircle className="h-3 w-3 mr-1" />}
+                {message.status === 'failed' && <AlertCircle className="h-3 w-3 mr-1" />}
                 {message.status === 'pending' && 'Pendiente'}
                 {message.status === 'sent' && 'Enviado'}
                 {message.status === 'delivered' && 'Entregado'}
                 {message.status === 'read' && 'Leído'}
-                {message.status === 'error' && 'Error'}
+                {message.status === 'failed' && 'Error'}
               </Badge>
             </div>
             <span className="text-xs text-muted-foreground">
-              {new Date(message.createdAt).toLocaleString('es-SV')}
+              {new Date(message.created_at).toLocaleString('es-SV')}
             </span>
           </div>
           <p className="text-sm text-muted-foreground line-clamp-2">
@@ -132,7 +132,7 @@ export function WhatsAppSender({ order, onMessageSent }: WhatsAppSenderProps) {
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: ({ templateId, variables }: { templateId: string; variables: Record<string, string> }) =>
-      whatsappApi.sendMessage(order.id, order.ownerId, templateId, variables),
+      whatsappApi.sendMessage(order.owner_id, order.id, templateId, variables, order.owner.phone),
     onSuccess: () => {
       toast.success('Mensaje enviado exitosamente');
       setSelectedTemplateId('');
@@ -168,7 +168,7 @@ export function WhatsAppSender({ order, onMessageSent }: WhatsAppSenderProps) {
             autoVariables[variable] = order.folio;
             break;
           case 'total':
-            autoVariables[variable] = order.budget.totals.total.toFixed(2);
+            autoVariables[variable] = order.total.toFixed(2);
             break;
           case 'vehiculo':
             autoVariables[variable] = `${order.vehicle.brand} ${order.vehicle.model}`;
@@ -199,7 +199,7 @@ export function WhatsAppSender({ order, onMessageSent }: WhatsAppSenderProps) {
     }
 
     // Check if owner has WhatsApp consent
-    if (!order.owner.whatsappConsent) {
+    if (!order.owner.whatsapp_consent) {
       toast.error('El cliente no ha dado consentimiento para WhatsApp');
       return;
     }
@@ -210,12 +210,12 @@ export function WhatsAppSender({ order, onMessageSent }: WhatsAppSenderProps) {
     });
   };
 
-  const canSendMessage = selectedTemplateId && order.owner.whatsappConsent && !sendMessageMutation.isPending;
+  const canSendMessage = selectedTemplateId && order.owner.whatsapp_consent && !sendMessageMutation.isPending;
 
   return (
     <div className="space-y-6">
       {/* WhatsApp consent warning */}
-      {!order.owner.whatsappConsent && (
+      {!order.owner.whatsapp_consent && (
         <Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
@@ -240,7 +240,7 @@ export function WhatsAppSender({ order, onMessageSent }: WhatsAppSenderProps) {
             <Select
               value={selectedTemplateId}
               onValueChange={handleTemplateChange}
-              disabled={templatesLoading || !order.owner.whatsappConsent}
+              disabled={templatesLoading || !order.owner.whatsapp_consent}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecciona una plantilla" />

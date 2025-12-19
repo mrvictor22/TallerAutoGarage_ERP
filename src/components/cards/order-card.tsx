@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { OrderWithRelations } from '@/types';
+import { OrderWithRelations } from '@/types/database';
 import { formatCurrency, formatDate, getOrderStatusColor, timeAgo } from '@/lib/utils';
 import {
   Calendar,
@@ -72,7 +72,7 @@ export function OrderCard({
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground">
-              {timeAgo(order.entryDate)}
+              {timeAgo(new Date(order.entry_date))}
             </p>
           </div>
           <DropdownMenu>
@@ -94,7 +94,7 @@ export function OrderCard({
                   Editar
                 </DropdownMenuItem>
               )}
-              {onSendMessage && order.owner.whatsappConsent && (
+              {onSendMessage && order.owner.whatsapp_consent && (
                 <DropdownMenuItem onClick={() => onSendMessage(order)}>
                   <MessageSquare className="mr-2 h-4 w-4" />
                   Enviar WhatsApp
@@ -140,23 +140,23 @@ export function OrderCard({
               <Calendar className="h-3 w-3" />
               <span className="text-xs">Ingreso</span>
             </div>
-            <p className="font-medium">{formatDate(order.entryDate, 'dd/MM/yyyy')}</p>
+            <p className="font-medium">{formatDate(new Date(order.entry_date), 'dd/MM/yyyy')}</p>
           </div>
           <div className="space-y-1">
             <div className="flex items-center gap-1 text-muted-foreground">
               <DollarSign className="h-3 w-3" />
               <span className="text-xs">Total</span>
             </div>
-            <p className="font-medium">{formatCurrency(order.budget.totals.total)}</p>
+            <p className="font-medium">{formatCurrency(order.total)}</p>
           </div>
         </div>
 
         {/* Commitment Date */}
-        {order.commitmentDate && (
+        {order.commitment_date && (
           <div className="flex items-center gap-2 text-sm">
             <Clock className="h-4 w-4 text-muted-foreground" />
-            <span>Compromiso: {formatDate(order.commitmentDate, 'dd/MM/yyyy')}</span>
-            {new Date(order.commitmentDate) < new Date() && order.status !== 'delivered' && (
+            <span>Compromiso: {formatDate(new Date(order.commitment_date), 'dd/MM/yyyy')}</span>
+            {new Date(order.commitment_date) < new Date() && order.status !== 'delivered' && (
               <Badge variant="destructive" className="text-xs">Vencido</Badge>
             )}
           </div>
@@ -166,13 +166,13 @@ export function OrderCard({
         {order.technician && (
           <div className="flex items-center gap-2">
             <Avatar className="h-6 w-6">
-              <AvatarImage src="" alt={order.technician.name} />
+              <AvatarImage src={order.technician.avatar_url || ''} alt={order.technician.full_name} />
               <AvatarFallback className="text-xs">
-                {order.technician.name.split(' ').map(n => n[0]).join('')}
+                {order.technician.full_name.split(' ').map(n => n[0]).join('')}
               </AvatarFallback>
             </Avatar>
             <span className="text-sm text-muted-foreground">
-              {order.technician.name}
+              {order.technician.full_name}
             </span>
           </div>
         )}
@@ -181,11 +181,11 @@ export function OrderCard({
         {!compact && (
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <div className="flex items-center gap-4">
-              <span>{order.timeline.length} entradas</span>
+              <span>{order.timeline_entries.length} entradas</span>
               <span>{order.messages.length} mensajes</span>
-              <span>{order.invoices.length} facturas</span>
+              <span>{order.parts_invoices.length} facturas</span>
             </div>
-            {order.budget.approved && (
+            {order.budget_approved && (
               <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
                 Aprobado
               </Badge>
@@ -201,7 +201,7 @@ export function OrderCard({
               Ver
             </Button>
           )}
-          {onSendMessage && order.owner.whatsappConsent && (
+          {onSendMessage && order.owner.whatsapp_consent && (
             <Button variant="outline" size="sm" onClick={() => onSendMessage(order)}>
               <MessageSquare className="h-3 w-3" />
             </Button>

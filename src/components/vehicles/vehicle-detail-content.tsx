@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { vehiclesApi, ordersApi } from '@/services/api';
-import { VehicleWithRelations, Order } from '@/types';
+import { vehiclesApi, ordersApi } from '@/services/supabase-api';
+import { VehicleWithRelations, Order } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +12,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DataTable } from '@/components/tables/data-table';
-import { OrderCard } from '@/components/cards/order-card';
 import { formatDate, getStatusColor } from '@/lib/utils';
 import {
   ArrowLeft,
@@ -46,27 +45,40 @@ export function VehicleDetailContent({ vehicleId, defaultTab = 'resumen' }: Vehi
   const [activeTab, setActiveTab] = useState(defaultTab);
 
   // Fetch vehicle details
-  const { data: vehicle, isLoading: vehicleLoading, error } = useQuery({
+  const { data: vehicleResponse, isLoading: vehicleLoading, error } = useQuery({
     queryKey: ['vehicle', vehicleId],
-    queryFn: () => vehiclesApi.getVehicle(vehicleId)
+    queryFn: async () => {
+      const response = await vehiclesApi.getVehicle(vehicleId);
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'Failed to fetch vehicle');
+      }
+      return response.data;
+    }
   });
 
   // Fetch vehicle's orders
   const { data: ordersResponse, isLoading: ordersLoading } = useQuery({
-    queryKey: ['orders', { vehicleId }],
-    queryFn: () => ordersApi.getOrders({ vehicleId }, 1, 50),
+    queryKey: ['orders', { vehicle_id: vehicleId }],
+    queryFn: async () => {
+      const response = await ordersApi.getOrders({ vehicle_id: vehicleId }, 1, 50);
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'Failed to fetch orders');
+      }
+      return response.data;
+    },
     enabled: !!vehicleId
   });
 
-  const orders = ordersResponse?.data?.data || [];
+  const vehicle = vehicleResponse;
+  const orders = ordersResponse?.data || [];
 
   // Order columns for table
   const orderColumns: ColumnDef<Order>[] = [
     {
-      accessorKey: 'orderNumber',
+      accessorKey: 'folio',
       header: 'Número',
       cell: ({ row }) => (
-        <div className="font-medium">{row.getValue('orderNumber')}</div>
+        <div className="font-medium">{row.getValue('folio')}</div>
       ),
     },
     {
@@ -75,23 +87,29 @@ export function VehicleDetailContent({ vehicleId, defaultTab = 'resumen' }: Vehi
       cell: ({ row }) => {
         const status = row.getValue('status') as string;
         return (
-          <Badge 
-            variant="outline" 
+          <Badge
+            variant="outline"
             className={getStatusColor(status)}
           >
-            {status === 'pending' && 'Pendiente'}
+            {status === 'new' && 'Nueva'}
+            {status === 'diagnosis' && 'Diagnóstico'}
+            {status === 'waiting_approval' && 'Esperando Aprobación'}
+            {status === 'approved' && 'Aprobada'}
             {status === 'in_progress' && 'En Progreso'}
-            {status === 'completed' && 'Completada'}
+            {status === 'waiting_parts' && 'Esperando Refacciones'}
+            {status === 'quality_check' && 'Control de Calidad'}
+            {status === 'ready' && 'Lista'}
+            {status === 'delivered' && 'Entregada'}
             {status === 'cancelled' && 'Cancelada'}
           </Badge>
         );
       },
     },
     {
-      accessorKey: 'description',
+      accessorKey: 'reason',
       header: 'Descripción',
       cell: ({ row }) => {
-        const description = row.getValue('description') as string;
+        const description = row.getValue('reason') as string;
         return (
           <div className="max-w-xs truncate" title={description}>
             {description}
@@ -100,18 +118,18 @@ export function VehicleDetailContent({ vehicleId, defaultTab = 'resumen' }: Vehi
       },
     },
     {
-      accessorKey: 'createdAt',
+      accessorKey: 'created_at',
       header: 'Fecha',
       cell: ({ row }) => {
-        const date = row.getValue('createdAt') as string;
+        const date = row.getValue('created_at') as string;
         return <span>{formatDate(date)}</span>;
       },
     },
     {
-      accessorKey: 'estimatedTotal',
+      accessorKey: 'total',
       header: 'Total',
       cell: ({ row }) => {
-        const total = row.getValue('estimatedTotal') as number;
+        const total = row.getValue('total') as number;
         return <span>${total?.toFixed(2)}</span>;
       },
     },
@@ -204,10 +222,10 @@ export function VehicleDetailContent({ vehicleId, defaultTab = 'resumen' }: Vehi
     );
   }
 
-  const activeOrders = orders.filter(o => ['pending', 'in_progress'].includes(o.status));
-  const completedOrders = orders.filter(o => o.status === 'completed');
-  const lastService = completedOrders.sort((a, b) => 
-    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  const activeOrders = orders.filter(o => ['new', 'diagnosis', 'waiting_approval', 'approved', 'in_progress', 'waiting_parts', 'quality_check', 'ready'].includes(o.status));
+  const completedOrders = orders.filter(o => o.status === 'delivered');
+  const lastService = completedOrders.sort((a, b) =>
+    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   )[0];
 
   return (
@@ -228,8 +246,12 @@ export function VehicleDetailContent({ vehicleId, defaultTab = 'resumen' }: Vehi
                 <span>{vehicle.plate}</span>
                 <span>•</span>
                 <span>{vehicle.year}</span>
-                <span>•</span>
-                <Badge variant="outline">{vehicle.color}</Badge>
+                {vehicle.color && (
+                  <>
+                    <span>•</span>
+                    <Badge variant="outline">{vehicle.color}</Badge>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -254,7 +276,7 @@ export function VehicleDetailContent({ vehicleId, defaultTab = 'resumen' }: Vehi
               <Gauge className="h-4 w-4 text-muted-foreground" />
               <div className="ml-2">
                 <p className="text-sm font-medium text-muted-foreground">Kilometraje</p>
-                <p className="text-2xl font-bold">{vehicle.mileage?.toLocaleString()} km</p>
+                <p className="text-2xl font-bold">{vehicle.mileage ? vehicle.mileage.toLocaleString() : 'N/A'} km</p>
               </div>
             </div>
           </CardContent>
@@ -288,7 +310,7 @@ export function VehicleDetailContent({ vehicleId, defaultTab = 'resumen' }: Vehi
               <div className="ml-2">
                 <p className="text-sm font-medium text-muted-foreground">Último Servicio</p>
                 <p className="text-sm font-bold">
-                  {lastService ? formatDate(lastService.createdAt) : 'N/A'}
+                  {lastService ? formatDate(lastService.created_at) : 'N/A'}
                 </p>
               </div>
             </div>
@@ -327,18 +349,52 @@ export function VehicleDetailContent({ vehicleId, defaultTab = 'resumen' }: Vehi
                     <p className="text-sm font-medium text-muted-foreground">Año</p>
                     <p>{vehicle.year}</p>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Color</p>
-                    <p>{vehicle.color}</p>
-                  </div>
+                  {vehicle.color && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Color</p>
+                      <p>{vehicle.color}</p>
+                    </div>
+                  )}
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Placa</p>
                     <p className="font-medium">{vehicle.plate}</p>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">VIN</p>
-                    <p className="font-mono text-sm">{vehicle.vin}</p>
-                  </div>
+                  {vehicle.vin && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">VIN</p>
+                      <p className="font-mono text-sm">{vehicle.vin}</p>
+                    </div>
+                  )}
+                  {vehicle.engine && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Motor</p>
+                      <p className="text-sm">{vehicle.engine}</p>
+                    </div>
+                  )}
+                  {vehicle.transmission && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Transmisión</p>
+                      <p className="text-sm">{vehicle.transmission}</p>
+                    </div>
+                  )}
+                  {vehicle.fuel_type && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Combustible</p>
+                      <p className="text-sm">{vehicle.fuel_type}</p>
+                    </div>
+                  )}
+                  {vehicle.mileage && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Kilometraje</p>
+                      <p className="text-sm">{vehicle.mileage.toLocaleString()} km</p>
+                    </div>
+                  )}
+                  {vehicle.last_service_date && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Último Servicio</p>
+                      <p className="text-sm">{formatDate(vehicle.last_service_date)}</p>
+                    </div>
+                  )}
                 </div>
                 {vehicle.notes && (
                   <div className="pt-2">
@@ -350,11 +406,11 @@ export function VehicleDetailContent({ vehicleId, defaultTab = 'resumen' }: Vehi
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Registrado:</span>
-                    <span>{formatDate(vehicle.createdAt)}</span>
+                    <span>{formatDate(vehicle.created_at)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Última actualización:</span>
-                    <span>{formatDate(vehicle.updatedAt)}</span>
+                    <span>{formatDate(vehicle.updated_at)}</span>
                   </div>
                 </div>
               </CardContent>
@@ -386,7 +442,7 @@ export function VehicleDetailContent({ vehicleId, defaultTab = 'resumen' }: Vehi
                     <Phone className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p>{vehicle.owner.phone}</p>
-                      {vehicle.owner.whatsappConsent && (
+                      {vehicle.owner.whatsapp_consent && (
                         <Badge variant="secondary" className="text-xs mt-1">
                           WhatsApp habilitado
                         </Badge>
@@ -425,7 +481,42 @@ export function VehicleDetailContent({ vehicleId, defaultTab = 'resumen' }: Vehi
               {orders.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {orders.slice(0, 4).map((order) => (
-                    <OrderCard key={order.id} order={order} />
+                    <Card key={order.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push(`/ordenes/${order.id}`)}>
+                      <CardContent className="pt-6">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="font-semibold">{order.folio}</div>
+                            <Badge
+                              variant="outline"
+                              className={getStatusColor(order.status)}
+                            >
+                              {order.status === 'new' && 'Nueva'}
+                              {order.status === 'diagnosis' && 'Diagnóstico'}
+                              {order.status === 'waiting_approval' && 'Esperando Aprobación'}
+                              {order.status === 'approved' && 'Aprobada'}
+                              {order.status === 'in_progress' && 'En Progreso'}
+                              {order.status === 'waiting_parts' && 'Esperando Refacciones'}
+                              {order.status === 'quality_check' && 'Control de Calidad'}
+                              {order.status === 'ready' && 'Lista'}
+                              {order.status === 'delivered' && 'Entregada'}
+                              {order.status === 'cancelled' && 'Cancelada'}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {order.reason}
+                          </p>
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Calendar className="h-3 w-3" />
+                              <span>{formatDate(order.created_at)}</span>
+                            </div>
+                            <div className="font-medium">
+                              ${order.total?.toFixed(2) || '0.00'}
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               ) : (
@@ -450,12 +541,12 @@ export function VehicleDetailContent({ vehicleId, defaultTab = 'resumen' }: Vehi
               Nueva Orden
             </Button>
           </div>
-          
+
           {orders.length > 0 ? (
             <DataTable
               columns={orderColumns}
               data={orders}
-              searchKey="orderNumber"
+              searchKey="folio"
               searchPlaceholder="Buscar por número de orden..."
             />
           ) : (
@@ -479,7 +570,7 @@ export function VehicleDetailContent({ vehicleId, defaultTab = 'resumen' }: Vehi
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium">Historial de Servicios</h3>
           </div>
-          
+
           {completedOrders.length > 0 ? (
             <div className="space-y-4">
               {completedOrders.map((order) => (
@@ -492,14 +583,14 @@ export function VehicleDetailContent({ vehicleId, defaultTab = 'resumen' }: Vehi
                             Completada
                           </Badge>
                           <span className="text-sm text-muted-foreground">
-                            {formatDate(order.createdAt)}
+                            {formatDate(order.created_at)}
                           </span>
                         </div>
-                        <h4 className="font-medium">{order.orderNumber}</h4>
-                        <p className="text-sm text-muted-foreground">{order.description}</p>
+                        <h4 className="font-medium">{order.folio}</h4>
+                        <p className="text-sm text-muted-foreground">{order.reason}</p>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium">${order.estimatedTotal?.toFixed(2)}</p>
+                        <p className="font-medium">${order.total?.toFixed(2)}</p>
                         <Button
                           variant="ghost"
                           size="sm"

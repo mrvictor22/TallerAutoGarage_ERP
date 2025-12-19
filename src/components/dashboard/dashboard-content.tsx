@@ -2,21 +2,22 @@
 
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { dashboardApi } from '@/services/api';
+import { dashboardApi } from '@/services/supabase-api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  FileText, 
-  Clock, 
-  Truck, 
-  CheckCircle, 
-  DollarSign, 
+import {
+  FileText,
+  Clock,
+  Truck,
+  CheckCircle,
+  DollarSign,
   TrendingUp,
   Activity,
   MessageSquare
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import type { TimelineEntry } from '@/types/database';
 
 function KPICard({ 
   title, 
@@ -49,15 +50,21 @@ function KPICard({
   );
 }
 
-function RecentActivityItem({ activity }: { activity: any }) {
+function RecentActivityItem({ activity }: { activity: TimelineEntry & { author?: { full_name: string } } }) {
   const getActivityIcon = (type: string) => {
     switch (type) {
-      case 'order_created':
-        return <FileText className="h-4 w-4" />;
-      case 'status_changed':
+      case 'status_change':
         return <Activity className="h-4 w-4" />;
       case 'message_sent':
         return <MessageSquare className="h-4 w-4" />;
+      case 'note':
+      case 'task':
+      case 'diagnosis':
+      case 'labor':
+      case 'parts_purchase':
+        return <FileText className="h-4 w-4" />;
+      case 'payment':
+        return <DollarSign className="h-4 w-4" />;
       default:
         return <Activity className="h-4 w-4" />;
     }
@@ -65,12 +72,18 @@ function RecentActivityItem({ activity }: { activity: any }) {
 
   const getActivityColor = (type: string) => {
     switch (type) {
-      case 'order_created':
-        return 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300';
-      case 'status_changed':
+      case 'status_change':
         return 'bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300';
       case 'message_sent':
         return 'bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-300';
+      case 'payment':
+        return 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900 dark:text-emerald-300';
+      case 'diagnosis':
+        return 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300';
+      case 'labor':
+        return 'bg-orange-100 text-orange-600 dark:bg-orange-900 dark:text-orange-300';
+      case 'parts_purchase':
+        return 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900 dark:text-yellow-300';
       default:
         return 'bg-gray-100 text-gray-600 dark:bg-gray-900 dark:text-gray-300';
     }
@@ -85,16 +98,22 @@ function RecentActivityItem({ activity }: { activity: any }) {
         <p className="text-sm font-medium text-foreground">
           {activity.title}
         </p>
-        <p className="text-sm text-muted-foreground truncate">
-          {activity.description}
-        </p>
+        {activity.description && (
+          <p className="text-sm text-muted-foreground truncate">
+            {activity.description}
+          </p>
+        )}
         <div className="flex items-center gap-2 mt-1">
+          {activity.author?.full_name && (
+            <>
+              <span className="text-xs text-muted-foreground">
+                {activity.author.full_name}
+              </span>
+              <span className="text-xs text-muted-foreground">•</span>
+            </>
+          )}
           <span className="text-xs text-muted-foreground">
-            {activity.userName}
-          </span>
-          <span className="text-xs text-muted-foreground">•</span>
-          <span className="text-xs text-muted-foreground">
-            {formatDate(activity.createdAt)}
+            {formatDate(activity.created_at)}
           </span>
         </div>
       </div>
@@ -104,15 +123,18 @@ function RecentActivityItem({ activity }: { activity: any }) {
 
 export function DashboardContent() {
 
-  const { data: kpis, isLoading: kpisLoading } = useQuery({
+  const { data: kpisResponse, isLoading: kpisLoading } = useQuery({
     queryKey: ['dashboard', 'kpis'],
     queryFn: () => dashboardApi.getKPIs()
   });
 
-  const { data: activities, isLoading: activitiesLoading } = useQuery({
+  const { data: activitiesResponse, isLoading: activitiesLoading } = useQuery({
     queryKey: ['dashboard', 'activities'],
-    queryFn: () => dashboardApi.getRecentActivities(10)
+    queryFn: () => dashboardApi.getRecentActivity(10)
   });
+
+  const kpis = kpisResponse?.data;
+  const activities = activitiesResponse?.data;
 
   if (kpisLoading) {
     return (
@@ -151,22 +173,22 @@ export function DashboardContent() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <KPICard
           title="Órdenes Abiertas"
-          value={kpis?.data?.openOrders || 0}
+          value={kpis?.openOrders || 0}
           icon={FileText}
         />
         <KPICard
           title="En Proceso"
-          value={kpis?.data?.inProgressOrders || 0}
+          value={kpis?.inProgressOrders || 0}
           icon={Clock}
         />
         <KPICard
-          title="Entregas Hoy"
-          value={kpis?.data?.deliveriesToday || 0}
+          title="Completadas Hoy"
+          value={kpis?.completedToday || 0}
           icon={Truck}
         />
         <KPICard
-          title="Pendientes de Aprobación"
-          value={kpis?.data?.pendingApproval || 0}
+          title="Pendientes de Pago"
+          value={kpis?.pendingPayment || 0}
           icon={CheckCircle}
         />
       </div>
@@ -175,15 +197,13 @@ export function DashboardContent() {
       <div className="grid gap-4 md:grid-cols-2">
         <KPICard
           title="Ingresos del Mes"
-          value={formatCurrency(kpis?.data?.totalRevenue || 0)}
+          value={formatCurrency(kpis?.revenueThisMonth || 0)}
           icon={DollarSign}
-          trend="+12.5% vs mes anterior"
         />
         <KPICard
-          title="Valor Promedio por Orden"
-          value={formatCurrency(kpis?.data?.averageOrderValue || 0)}
+          title="Ingresos Totales"
+          value={formatCurrency(kpis?.totalRevenue || 0)}
           icon={TrendingUp}
-          trend="+5.2% vs mes anterior"
         />
       </div>
 
@@ -210,8 +230,8 @@ export function DashboardContent() {
                   </div>
                 </div>
               ))
-            ) : activities?.data?.length ? (
-              activities.data.map((activity) => (
+            ) : activities?.length ? (
+              activities.map((activity) => (
                 <RecentActivityItem key={activity.id} activity={activity} />
               ))
             ) : (

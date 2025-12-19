@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { ownersApi, ordersApi, vehiclesApi } from '@/services/api';
-import { OwnerWithRelations, Order, Vehicle } from '@/types';
+import { ownersApi, vehiclesApi, ordersApi } from '@/services/supabase-api';
+import { OwnerWithRelations, Order, Vehicle } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,13 +12,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DataTable } from '@/components/tables/data-table';
-import { OrderCard } from '@/components/cards/order-card';
-import { WhatsAppSender } from '@/components/whatsapp/whatsapp-sender';
 import { formatPhone, formatDate, getStatusColor } from '@/lib/utils';
 import {
   ArrowLeft,
   Edit,
-  MessageSquare,
   Phone,
   Mail,
   MapPin,
@@ -47,27 +44,28 @@ export function OwnerDetailContent({ ownerId, defaultTab = 'resumen' }: OwnerDet
   const [activeTab, setActiveTab] = useState(defaultTab);
 
   // Fetch owner details
-  const { data: owner, isLoading: ownerLoading, error } = useQuery({
+  const { data: ownerResponse, isLoading: ownerLoading, error } = useQuery({
     queryKey: ['owner', ownerId],
     queryFn: () => ownersApi.getOwner(ownerId)
   });
 
   // Fetch owner's orders
   const { data: ordersResponse, isLoading: ordersLoading } = useQuery({
-    queryKey: ['orders', { ownerId }],
-    queryFn: () => ordersApi.getOrders({ ownerId }, 1, 50),
+    queryKey: ['orders', { owner_id: ownerId }],
+    queryFn: () => ordersApi.getOrdersByOwner(ownerId),
     enabled: !!ownerId
   });
 
   // Fetch owner's vehicles
   const { data: vehiclesResponse, isLoading: vehiclesLoading } = useQuery({
-    queryKey: ['vehicles', { ownerId }],
-    queryFn: () => vehiclesApi.getVehicles({ ownerId }, 1, 50),
+    queryKey: ['vehicles', { owner_id: ownerId }],
+    queryFn: () => vehiclesApi.getVehiclesByOwner(ownerId),
     enabled: !!ownerId
   });
 
-  const orders = ordersResponse?.data?.data || [];
-  const vehicles = vehiclesResponse?.data?.data || [];
+  const owner = ownerResponse?.success ? ownerResponse.data : undefined;
+  const orders = ordersResponse?.success ? ordersResponse.data || [] : [];
+  const vehicles = vehiclesResponse?.success ? vehiclesResponse.data || [] : [];
 
   // Vehicle columns for table
   const vehicleColumns: ColumnDef<Vehicle>[] = [
@@ -224,18 +222,12 @@ export function OwnerDetailContent({ ownerId, defaultTab = 'resumen' }: OwnerDet
                 <Badge variant={owner.type === 'company' ? 'default' : 'secondary'}>
                   {owner.type === 'company' ? 'Empresa' : 'Persona'}
                 </Badge>
-                {owner.taxId && <span>• {owner.taxId}</span>}
+                {owner.tax_id && <span>• {owner.tax_id}</span>}
               </div>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {owner.whatsappConsent && (
-            <Button variant="outline" onClick={() => setActiveTab('whatsapp')}>
-              <MessageSquare className="mr-2 h-4 w-4" />
-              WhatsApp
-            </Button>
-          )}
           <Button onClick={handleEdit}>
             <Edit className="mr-2 h-4 w-4" />
             Editar
@@ -274,7 +266,7 @@ export function OwnerDetailContent({ ownerId, defaultTab = 'resumen' }: OwnerDet
               <div className="ml-2">
                 <p className="text-sm font-medium text-muted-foreground">Activas</p>
                 <p className="text-2xl font-bold">
-                  {orders.filter(o => ['pending', 'in_progress'].includes(o.status)).length}
+                  {orders.filter(o => ['new', 'diagnosis', 'waiting_approval', 'approved', 'in_progress', 'waiting_parts', 'quality_check'].includes(o.status)).length}
                 </p>
               </div>
             </div>
@@ -287,8 +279,8 @@ export function OwnerDetailContent({ ownerId, defaultTab = 'resumen' }: OwnerDet
               <div className="ml-2">
                 <p className="text-sm font-medium text-muted-foreground">Última Orden</p>
                 <p className="text-sm font-bold">
-                  {orders.length > 0 
-                    ? formatDate(Math.max(...orders.map(o => new Date(o.createdAt).getTime())))
+                  {orders.length > 0
+                    ? formatDate(new Date(Math.max(...orders.map(o => new Date(o.created_at).getTime()))))
                     : 'N/A'
                   }
                 </p>
@@ -308,9 +300,6 @@ export function OwnerDetailContent({ ownerId, defaultTab = 'resumen' }: OwnerDet
           <TabsTrigger value="ordenes">
             Órdenes ({orders.length})
           </TabsTrigger>
-          {owner.whatsappConsent && (
-            <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
-          )}
         </TabsList>
 
         <TabsContent value="resumen" className="space-y-6">
@@ -325,13 +314,22 @@ export function OwnerDetailContent({ ownerId, defaultTab = 'resumen' }: OwnerDet
                   <Phone className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="font-medium">{formatPhone(owner.phone)}</p>
-                    {owner.whatsappConsent && (
+                    {owner.whatsapp_consent && (
                       <Badge variant="secondary" className="text-xs mt-1">
                         WhatsApp habilitado
                       </Badge>
                     )}
                   </div>
                 </div>
+                {owner.phone_secondary && (
+                  <div className="flex items-center gap-3">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Secundario</p>
+                      <p className="font-medium">{formatPhone(owner.phone_secondary)}</p>
+                    </div>
+                  </div>
+                )}
                 {owner.email && (
                   <div className="flex items-center gap-3">
                     <Mail className="h-4 w-4 text-muted-foreground" />
@@ -341,7 +339,23 @@ export function OwnerDetailContent({ ownerId, defaultTab = 'resumen' }: OwnerDet
                 {owner.address && (
                   <div className="flex items-start gap-3">
                     <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <p className="text-sm">{owner.address}</p>
+                    <div className="text-sm">
+                      <p>{owner.address}</p>
+                      {(owner.city || owner.state || owner.postal_code) && (
+                        <p className="text-muted-foreground">
+                          {[owner.city, owner.state, owner.postal_code].filter(Boolean).join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {owner.type === 'company' && owner.company_name && (
+                  <div className="pt-2">
+                    <p className="text-sm font-medium mb-1">Empresa</p>
+                    <p className="text-sm">{owner.company_name}</p>
+                    {owner.contact_person && (
+                      <p className="text-sm text-muted-foreground">Contacto: {owner.contact_person}</p>
+                    )}
                   </div>
                 )}
                 {owner.notes && (
@@ -359,7 +373,7 @@ export function OwnerDetailContent({ ownerId, defaultTab = 'resumen' }: OwnerDet
                 <CardTitle>Información Adicional</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {owner.tags.length > 0 && (
+                {owner.tags && owner.tags.length > 0 && (
                   <div>
                     <p className="text-sm font-medium mb-2 flex items-center gap-2">
                       <Tag className="h-4 w-4" />
@@ -377,12 +391,21 @@ export function OwnerDetailContent({ ownerId, defaultTab = 'resumen' }: OwnerDet
                 <Separator />
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total gastado:</span>
+                    <span className="font-medium">${owner.total_spent?.toLocaleString() || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total órdenes:</span>
+                    <span className="font-medium">{owner.total_orders || 0}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between">
                     <span className="text-muted-foreground">Cliente desde:</span>
-                    <span>{formatDate(owner.createdAt)}</span>
+                    <span>{formatDate(owner.created_at)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Última actualización:</span>
-                    <span>{formatDate(owner.updatedAt)}</span>
+                    <span>{formatDate(owner.updated_at)}</span>
                   </div>
                 </div>
               </CardContent>
@@ -402,9 +425,35 @@ export function OwnerDetailContent({ ownerId, defaultTab = 'resumen' }: OwnerDet
             </CardHeader>
             <CardContent>
               {orders.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3">
                   {orders.slice(0, 4).map((order) => (
-                    <OrderCard key={order.id} order={order} />
+                    <Card key={order.id} className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => router.push(`/ordenes/${order.id}`)}>
+                      <CardContent className="pt-4">
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold">{order.folio}</span>
+                              <Badge className={getStatusColor(order.status)}>
+                                {order.status}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground line-clamp-1">
+                              {order.reason}
+                            </p>
+                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {formatDate(order.entry_date)}
+                              </span>
+                              <span>${order.total.toFixed(2)}</span>
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="sm">
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               ) : (
@@ -429,7 +478,7 @@ export function OwnerDetailContent({ ownerId, defaultTab = 'resumen' }: OwnerDet
               Nuevo Vehículo
             </Button>
           </div>
-          
+
           {vehicles.length > 0 ? (
             <DataTable
               columns={vehicleColumns}
@@ -462,11 +511,37 @@ export function OwnerDetailContent({ ownerId, defaultTab = 'resumen' }: OwnerDet
               Nueva Orden
             </Button>
           </div>
-          
+
           {orders.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-3">
               {orders.map((order) => (
-                <OrderCard key={order.id} order={order} />
+                <Card key={order.id} className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => router.push(`/ordenes/${order.id}`)}>
+                  <CardContent className="pt-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{order.folio}</span>
+                          <Badge className={getStatusColor(order.status)}>
+                            {order.status}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground line-clamp-1">
+                          {order.reason}
+                        </p>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {formatDate(order.entry_date)}
+                          </span>
+                          <span>${order.total.toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="sm">
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           ) : (
@@ -485,17 +560,6 @@ export function OwnerDetailContent({ ownerId, defaultTab = 'resumen' }: OwnerDet
             </Card>
           )}
         </TabsContent>
-
-        {owner.whatsappConsent && (
-          <TabsContent value="whatsapp" className="space-y-6">
-            <WhatsAppSender 
-              recipientId={owner.id}
-              recipientType="owner"
-              recipientName={owner.name}
-              recipientPhone={owner.phone}
-            />
-          </TabsContent>
-        )}
       </Tabs>
     </div>
   );

@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
-import { ordersApi } from '@/services/api';
-import { OrderWithRelations, OrderFilters, OrderStatus } from '@/types';
+import { ordersApi, OrderFilters } from '@/services/supabase-api';
+import { OrderWithRelations, OrderStatus } from '@/types/database';
 import { DataTable } from '@/components/tables/data-table';
 import { OrderCard } from '@/components/cards/order-card';
 import { Button } from '@/components/ui/button';
@@ -50,11 +50,14 @@ import { toast } from 'sonner';
 const orderStatuses: { value: OrderStatus; label: string }[] = [
   { value: 'new', label: 'Nuevo' },
   { value: 'diagnosis', label: 'Diagnóstico' },
+  { value: 'waiting_approval', label: 'Esperando Aprobación' },
+  { value: 'approved', label: 'Aprobado' },
   { value: 'in_progress', label: 'En Proceso' },
-  { value: 'waiting', label: 'En Espera' },
-  { value: 'approval', label: 'Aprobación' },
-  { value: 'finished', label: 'Finalizado' },
-  { value: 'delivered', label: 'Entregado' }
+  { value: 'waiting_parts', label: 'Esperando Piezas' },
+  { value: 'quality_check', label: 'Control de Calidad' },
+  { value: 'ready', label: 'Listo' },
+  { value: 'delivered', label: 'Entregado' },
+  { value: 'cancelled', label: 'Cancelado' }
 ];
 
 export function OrdersListContent() {
@@ -66,10 +69,17 @@ export function OrdersListContent() {
   // Fetch orders
   const { data: ordersResponse, isLoading, refetch } = useQuery({
     queryKey: ['orders', filters],
-    queryFn: () => ordersApi.getOrders(filters, 1, 50)
+    queryFn: async () => {
+      const response = await ordersApi.getOrders(filters, 1, 50);
+      if (!response.success) {
+        toast.error(response.error || 'Error al cargar las órdenes');
+        return null;
+      }
+      return response.data;
+    }
   });
 
-  const orders = ordersResponse?.data?.data || [];
+  const orders = ordersResponse?.data || [];
 
   // Table columns
   const columns: ColumnDef<OrderWithRelations>[] = [
@@ -129,10 +139,10 @@ export function OrdersListContent() {
       },
     },
     {
-      accessorKey: 'entryDate',
+      accessorKey: 'entry_date',
       header: 'Fecha Ingreso',
       cell: ({ row }) => {
-        const date = row.getValue('entryDate') as Date;
+        const date = new Date(row.getValue('entry_date') as string);
         return (
           <div>
             <div className="font-medium">{formatDate(date, 'dd/MM/yyyy')}</div>
@@ -142,14 +152,15 @@ export function OrdersListContent() {
       },
     },
     {
-      accessorKey: 'budget',
+      accessorKey: 'total',
       header: 'Total',
       cell: ({ row }) => {
-        const budget = row.original.budget;
+        const total = row.original.total;
+        const budgetApproved = row.original.budget_approved;
         return (
           <div className="text-right">
-            <div className="font-medium">{formatCurrency(budget.totals.total)}</div>
-            {budget.approved && (
+            <div className="font-medium">{formatCurrency(total)}</div>
+            {budgetApproved && (
               <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
                 Aprobado
               </Badge>
@@ -164,7 +175,7 @@ export function OrdersListContent() {
       cell: ({ row }) => {
         const technician = row.original.technician;
         return technician ? (
-          <div className="text-sm">{technician.name}</div>
+          <div className="text-sm">{technician.full_name}</div>
         ) : (
           <div className="text-sm text-muted-foreground">Sin asignar</div>
         );
@@ -191,7 +202,7 @@ export function OrdersListContent() {
                 <Edit className="mr-2 h-4 w-4" />
                 Editar
               </DropdownMenuItem>
-              {order.owner.whatsappConsent && (
+              {order.owner.whatsapp_consent && (
                 <DropdownMenuItem onClick={() => handleSendMessage(order)}>
                   <MessageSquare className="mr-2 h-4 w-4" />
                   Enviar WhatsApp
@@ -228,9 +239,9 @@ export function OrdersListContent() {
       'Vehículo': `${order.vehicle.brand} ${order.vehicle.model}`,
       'Placa': order.vehicle.plate,
       'Estado': orderStatuses.find(s => s.value === order.status)?.label || order.status,
-      'Fecha Ingreso': formatDate(order.entryDate, 'dd/MM/yyyy'),
-      'Total': order.budget.totals.total,
-      'Técnico': order.technician?.name || 'Sin asignar'
+      'Fecha Ingreso': formatDate(new Date(order.entry_date), 'dd/MM/yyyy'),
+      'Total': order.total,
+      'Técnico': order.technician?.full_name || 'Sin asignar'
     }));
 
     // Simple CSV export (in real app, use a proper CSV library)
@@ -251,23 +262,29 @@ export function OrdersListContent() {
   };
 
   const updateFilter = (key: keyof OrderFilters, value: any) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    setFilters(prev => {
+      const newFilters = { ...prev };
+      if (value === undefined || value === '' || (Array.isArray(value) && value.length === 0)) {
+        delete newFilters[key];
+      } else {
+        newFilters[key] = value;
+      }
+      return newFilters;
+    });
   };
 
   const clearFilters = () => {
     setFilters({});
   };
 
-  const hasActiveFilters = Object.values(filters).some(value => 
-    value !== undefined && value !== '' && (!Array.isArray(value) || value.length > 0)
-  );
+  const hasActiveFilters = Object.keys(filters).length > 0;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t('orders.title')}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Órdenes de Trabajo</h1>
           <p className="text-muted-foreground">
             Gestiona todas las órdenes de trabajo del taller
           </p>
@@ -278,13 +295,13 @@ export function OrdersListContent() {
             Filtros
             {hasActiveFilters && (
               <Badge variant="secondary" className="ml-2">
-                {Object.values(filters).filter(v => v !== undefined && v !== '').length}
+                {Object.keys(filters).length}
               </Badge>
             )}
           </Button>
           <Button onClick={handleNewOrder}>
             <Plus className="mr-2 h-4 w-4" />
-            {t('orders.newOrder')}
+            Nueva Orden
           </Button>
         </div>
       </div>
@@ -343,8 +360,8 @@ export function OrdersListContent() {
                 <Input
                   id="dateFrom"
                   type="date"
-                  value={filters.dateFrom ? filters.dateFrom.toISOString().split('T')[0] : ''}
-                  onChange={(e) => updateFilter('dateFrom', e.target.value ? new Date(e.target.value) : undefined)}
+                  value={filters.date_from || ''}
+                  onChange={(e) => updateFilter('date_from', e.target.value || undefined)}
                 />
               </div>
               <div>
@@ -352,8 +369,8 @@ export function OrdersListContent() {
                 <Input
                   id="dateTo"
                   type="date"
-                  value={filters.dateTo ? filters.dateTo.toISOString().split('T')[0] : ''}
-                  onChange={(e) => updateFilter('dateTo', e.target.value ? new Date(e.target.value) : undefined)}
+                  value={filters.date_to || ''}
+                  onChange={(e) => updateFilter('date_to', e.target.value || undefined)}
                 />
               </div>
             </div>
@@ -411,7 +428,7 @@ export function OrdersListContent() {
               <Car className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
               <h3 className="text-lg font-medium mb-2">No hay órdenes</h3>
               <p className="text-muted-foreground mb-4">
-                {hasActiveFilters 
+                {hasActiveFilters
                   ? 'No se encontraron órdenes con los filtros aplicados'
                   : 'Comienza creando tu primera orden de trabajo'
                 }
