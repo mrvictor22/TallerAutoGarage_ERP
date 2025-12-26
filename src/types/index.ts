@@ -231,6 +231,8 @@ export interface WorkshopConfig {
   whatsapp_enabled: boolean;
   whatsapp_business_number: string | null;
   whatsapp_api_token: string | null;
+  primary_color: string | null;
+  secondary_color: string | null;
   created_at: string;
   updated_at: string;
 }

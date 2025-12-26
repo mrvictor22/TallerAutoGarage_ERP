@@ -11,7 +11,12 @@ import { useAuthStore } from '@/stores/auth';
 import { useWorkshopConfig } from '@/contexts/workshop-config';
 import { cn } from '@/lib/utils';
 
-export function LoginForm() {
+interface LoginFormProps {
+  primaryColor?: string;
+  secondaryColor?: string;
+}
+
+export function LoginForm({ primaryColor = '#f97316', secondaryColor = '#ef4444' }: LoginFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -69,20 +74,42 @@ export function LoginForm() {
     setIsLoading(false);
   };
 
+  const gradientStyle = {
+    background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`
+  };
+
+  const glowGradientStyle = {
+    background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor}, ${primaryColor})`
+  };
+
   return (
     <div className="w-full max-w-md mx-auto">
       {/* Glass Card */}
       <div className="relative">
         {/* Glow Effect */}
-        <div className="absolute -inset-1 bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 rounded-2xl blur-lg opacity-75 animate-pulse" />
+        <div
+          className="absolute -inset-1 rounded-2xl blur-lg opacity-75 animate-pulse"
+          style={glowGradientStyle}
+        />
 
         <div className="relative bg-black/80 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
           {/* Header with Logo */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-orange-500 to-red-600 mb-4 shadow-lg shadow-orange-500/50">
+            <div
+              className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-4 shadow-lg"
+              style={{
+                background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+                boxShadow: `0 10px 25px -5px ${primaryColor}80`
+              }}
+            >
               <Wrench className="w-10 h-10 text-white" />
             </div>
-            <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-orange-500 to-red-500 tracking-tight">
+            <h1
+              className="text-3xl font-black text-transparent bg-clip-text tracking-tight"
+              style={{
+                backgroundImage: `linear-gradient(to right, white, ${primaryColor}, ${secondaryColor})`
+              }}
+            >
               {workshopName.toUpperCase()}
             </h1>
             <p className="text-gray-400 mt-2 text-sm">
@@ -91,9 +118,15 @@ export function LoginForm() {
 
             {/* Decorative Line */}
             <div className="flex items-center justify-center gap-2 mt-4">
-              <div className="h-px w-12 bg-gradient-to-r from-transparent to-orange-500" />
-              <Gauge className="w-4 h-4 text-orange-500" />
-              <div className="h-px w-12 bg-gradient-to-l from-transparent to-orange-500" />
+              <div
+                className="h-px w-12"
+                style={{ background: `linear-gradient(to right, transparent, ${primaryColor})` }}
+              />
+              <Gauge className="w-4 h-4" style={{ color: primaryColor }} />
+              <div
+                className="h-px w-12"
+                style={{ background: `linear-gradient(to left, transparent, ${primaryColor})` }}
+              />
             </div>
           </div>
 
@@ -105,9 +138,10 @@ export function LoginForm() {
               className={cn(
                 'flex-1 py-2.5 text-sm font-semibold rounded-md transition-all duration-300',
                 mode === 'login'
-                  ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg'
+                  ? 'text-white shadow-lg'
                   : 'text-gray-400 hover:text-white'
               )}
+              style={mode === 'login' ? gradientStyle : undefined}
             >
               Iniciar Sesión
             </button>
@@ -117,9 +151,10 @@ export function LoginForm() {
               className={cn(
                 'flex-1 py-2.5 text-sm font-semibold rounded-md transition-all duration-300',
                 mode === 'register'
-                  ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg'
+                  ? 'text-white shadow-lg'
                   : 'text-gray-400 hover:text-white'
               )}
+              style={mode === 'register' ? gradientStyle : undefined}
             >
               Registrarse
             </button>
@@ -133,16 +168,26 @@ export function LoginForm() {
                   Nombre Completo
                 </Label>
                 <div className="relative group">
-                  <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg blur opacity-0 group-focus-within:opacity-50 transition-opacity" />
+                  <div
+                    className="absolute inset-0 rounded-lg blur opacity-0 group-focus-within:opacity-50 transition-opacity"
+                    style={gradientStyle}
+                  />
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500 group-focus-within:text-orange-500 transition-colors" />
+                    <User
+                      className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500 group-focus-within:transition-colors"
+                      style={{ '--tw-text-opacity': 1 } as React.CSSProperties}
+                    />
                     <Input
                       id="fullName"
                       type="text"
                       placeholder="Juan Pérez"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className="pl-11 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-orange-500 focus:ring-orange-500/20 rounded-lg"
+                      className="pl-11 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-500 rounded-lg"
+                      style={{
+                        '--tw-ring-color': `${primaryColor}33`,
+                        borderColor: 'rgba(255,255,255,0.1)'
+                      } as React.CSSProperties}
                       required
                       disabled={isLoading}
                     />
@@ -156,16 +201,19 @@ export function LoginForm() {
                 Correo Electrónico
               </Label>
               <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg blur opacity-0 group-focus-within:opacity-50 transition-opacity" />
+                <div
+                  className="absolute inset-0 rounded-lg blur opacity-0 group-focus-within:opacity-50 transition-opacity"
+                  style={gradientStyle}
+                />
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500 group-focus-within:text-orange-500 transition-colors" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500 group-focus-within:transition-colors" />
                   <Input
                     id="email"
                     type="email"
                     placeholder="tu@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-11 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-orange-500 focus:ring-orange-500/20 rounded-lg"
+                    className="pl-11 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-500 rounded-lg"
                     required
                     disabled={isLoading}
                   />
@@ -178,16 +226,19 @@ export function LoginForm() {
                 Contraseña
               </Label>
               <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg blur opacity-0 group-focus-within:opacity-50 transition-opacity" />
+                <div
+                  className="absolute inset-0 rounded-lg blur opacity-0 group-focus-within:opacity-50 transition-opacity"
+                  style={gradientStyle}
+                />
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500 group-focus-within:text-orange-500 transition-colors" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500 group-focus-within:transition-colors" />
                   <Input
                     id="password"
                     type="password"
                     placeholder={mode === 'register' ? 'Mínimo 6 caracteres' : '••••••••'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-11 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-orange-500 focus:ring-orange-500/20 rounded-lg"
+                    className="pl-11 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-500 rounded-lg"
                     required
                     minLength={mode === 'register' ? 6 : undefined}
                     disabled={isLoading}
@@ -211,7 +262,11 @@ export function LoginForm() {
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full h-12 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold text-base rounded-lg shadow-lg shadow-orange-500/25 transition-all duration-300 hover:shadow-orange-500/40 hover:scale-[1.02] active:scale-[0.98]"
+              className="w-full h-12 text-white font-bold text-base rounded-lg shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+              style={{
+                background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`,
+                boxShadow: `0 10px 25px -5px ${primaryColor}40`
+              }}
             >
               {isLoading ? (
                 <Loader2 className="h-5 w-5 animate-spin" />

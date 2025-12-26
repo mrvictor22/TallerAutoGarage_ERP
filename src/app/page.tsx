@@ -7,6 +7,8 @@ import { useWorkshopConfig } from '@/contexts/workshop-config';
 export default function RootPage() {
   const { config, isLoading } = useWorkshopConfig();
   const workshopName = config?.name || 'Taller Pro';
+  const primaryColor = config?.primary_color || '#f97316';
+  const secondaryColor = config?.secondary_color || '#ef4444';
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
@@ -14,24 +16,39 @@ export default function RootPage() {
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:64px_64px]" />
 
       {/* Animated Gradient Orbs */}
-      <div className="absolute top-0 -left-40 w-96 h-96 bg-orange-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob" />
-      <div className="absolute top-0 -right-40 w-96 h-96 bg-red-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000" />
-      <div className="absolute -bottom-40 left-20 w-96 h-96 bg-orange-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000" />
+      <div
+        className="absolute top-0 -left-40 w-96 h-96 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"
+        style={{ backgroundColor: primaryColor }}
+      />
+      <div
+        className="absolute top-0 -right-40 w-96 h-96 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"
+        style={{ backgroundColor: secondaryColor }}
+      />
+      <div
+        className="absolute -bottom-40 left-20 w-96 h-96 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"
+        style={{ backgroundColor: primaryColor }}
+      />
 
       {/* Racing Stripes */}
       <div className="absolute inset-0 overflow-hidden opacity-5">
-        <div className="absolute top-0 left-1/4 w-2 h-full bg-gradient-to-b from-transparent via-orange-500 to-transparent transform -skew-x-12" />
-        <div className="absolute top-0 right-1/4 w-2 h-full bg-gradient-to-b from-transparent via-red-500 to-transparent transform -skew-x-12" />
+        <div
+          className="absolute top-0 left-1/4 w-2 h-full transform -skew-x-12"
+          style={{ background: `linear-gradient(to bottom, transparent, ${primaryColor}, transparent)` }}
+        />
+        <div
+          className="absolute top-0 right-1/4 w-2 h-full transform -skew-x-12"
+          style={{ background: `linear-gradient(to bottom, transparent, ${secondaryColor}, transparent)` }}
+        />
       </div>
 
       {/* Tire Track Pattern */}
       <div className="absolute bottom-0 left-0 right-0 h-40 opacity-10">
         <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
           <pattern id="tire-track" x="0" y="0" width="100" height="20" patternUnits="userSpaceOnUse">
-            <rect x="0" y="8" width="30" height="4" fill="currentColor" className="text-orange-500" />
-            <rect x="35" y="8" width="15" height="4" fill="currentColor" className="text-orange-500" />
-            <rect x="55" y="8" width="15" height="4" fill="currentColor" className="text-orange-500" />
-            <rect x="75" y="8" width="20" height="4" fill="currentColor" className="text-orange-500" />
+            <rect x="0" y="8" width="30" height="4" fill={primaryColor} />
+            <rect x="35" y="8" width="15" height="4" fill={primaryColor} />
+            <rect x="55" y="8" width="15" height="4" fill={primaryColor} />
+            <rect x="75" y="8" width="20" height="4" fill={primaryColor} />
           </pattern>
           <rect width="100%" height="100%" fill="url(#tire-track)" />
         </svg>
@@ -46,7 +63,13 @@ export default function RootPage() {
           {/* Hero Section */}
           <div className="space-y-6">
             {/* Logo */}
-            <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-orange-500 to-red-600 mb-6 shadow-2xl shadow-orange-500/50 animate-pulse-slow">
+            <div
+              className="inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 shadow-2xl animate-pulse-slow"
+              style={{
+                background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+                boxShadow: `0 25px 50px -12px ${primaryColor}80`
+              }}
+            >
               <Wrench className="w-12 h-12 text-white" />
             </div>
 
@@ -55,7 +78,12 @@ export default function RootPage() {
               {isLoading ? (
                 <Loader2 className="w-12 h-12 animate-spin mx-auto" />
               ) : (
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-orange-500 to-red-500">
+                <span
+                  className="text-transparent bg-clip-text"
+                  style={{
+                    backgroundImage: `linear-gradient(to right, white, ${primaryColor}, ${secondaryColor})`
+                  }}
+                >
                   {workshopName.toUpperCase()}
                 </span>
               )}
@@ -68,36 +96,51 @@ export default function RootPage() {
 
             {/* Decorative Line */}
             <div className="flex items-center justify-center gap-4 py-4">
-              <div className="h-px w-20 bg-gradient-to-r from-transparent to-orange-500" />
-              <Gauge className="w-6 h-6 text-orange-500 animate-spin-slow" />
-              <div className="h-px w-20 bg-gradient-to-l from-transparent to-orange-500" />
+              <div
+                className="h-px w-20"
+                style={{ background: `linear-gradient(to right, transparent, ${primaryColor})` }}
+              />
+              <Gauge className="w-6 h-6 animate-spin-slow" style={{ color: primaryColor }} />
+              <div
+                className="h-px w-20"
+                style={{ background: `linear-gradient(to left, transparent, ${primaryColor})` }}
+              />
             </div>
           </div>
 
           {/* Features Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-8">
             <div className="group relative">
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300" />
+              <div
+                className="absolute -inset-0.5 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300"
+                style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+              />
               <div className="relative bg-black/60 backdrop-blur-xl border border-white/10 rounded-xl p-6 space-y-3">
-                <Car className="w-8 h-8 text-orange-500 mx-auto" />
+                <Car className="w-8 h-8 mx-auto" style={{ color: primaryColor }} />
                 <h3 className="text-white font-bold text-lg">Gestión de Vehículos</h3>
                 <p className="text-gray-400 text-sm">Control completo del inventario automotriz</p>
               </div>
             </div>
 
             <div className="group relative">
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300" />
+              <div
+                className="absolute -inset-0.5 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300"
+                style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+              />
               <div className="relative bg-black/60 backdrop-blur-xl border border-white/10 rounded-xl p-6 space-y-3">
-                <Wrench className="w-8 h-8 text-orange-500 mx-auto" />
+                <Wrench className="w-8 h-8 mx-auto" style={{ color: primaryColor }} />
                 <h3 className="text-white font-bold text-lg">Órdenes de Trabajo</h3>
                 <p className="text-gray-400 text-sm">Seguimiento en tiempo real de reparaciones</p>
               </div>
             </div>
 
             <div className="group relative">
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300" />
+              <div
+                className="absolute -inset-0.5 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300"
+                style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+              />
               <div className="relative bg-black/60 backdrop-blur-xl border border-white/10 rounded-xl p-6 space-y-3">
-                <Zap className="w-8 h-8 text-orange-500 mx-auto" />
+                <Zap className="w-8 h-8 mx-auto" style={{ color: primaryColor }} />
                 <h3 className="text-white font-bold text-lg">Rendimiento Máximo</h3>
                 <p className="text-gray-400 text-sm">Optimiza la eficiencia de tu taller</p>
               </div>
@@ -107,10 +150,16 @@ export default function RootPage() {
           {/* CTA Button */}
           <div className="pt-8">
             <div className="relative inline-block group">
-              <div className="absolute -inset-1 bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 rounded-xl blur-lg opacity-75 group-hover:opacity-100 transition duration-300 animate-pulse" />
+              <div
+                className="absolute -inset-1 rounded-xl blur-lg opacity-75 group-hover:opacity-100 transition duration-300 animate-pulse"
+                style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor}, ${primaryColor})` }}
+              />
               <Link
                 href="/login"
-                className="relative inline-flex items-center gap-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold text-lg px-10 py-4 rounded-xl shadow-2xl transition-all duration-300 group-hover:scale-105 active:scale-95"
+                className="relative inline-flex items-center gap-3 text-white font-bold text-lg px-10 py-4 rounded-xl shadow-2xl transition-all duration-300 group-hover:scale-105 active:scale-95"
+                style={{
+                  background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`
+                }}
               >
                 <Zap className="w-6 h-6" />
                 Iniciar Sesión

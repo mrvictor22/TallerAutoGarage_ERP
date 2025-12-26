@@ -55,7 +55,10 @@ import {
   MessageSquare,
   Tag,
   AlertCircle,
-  Loader2
+  Loader2,
+  Palette,
+  Wrench,
+  Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ColumnDef } from '@tanstack/react-table';
@@ -612,6 +615,10 @@ export function ConfigurationContent() {
             <Tag className="mr-2 h-4 w-4" />
             Categorías ({categories.length})
           </TabsTrigger>
+          <TabsTrigger value="branding">
+            <Palette className="mr-2 h-4 w-4" />
+            Apariencia
+          </TabsTrigger>
         </TabsList>
 
         {/* General Tab */}
@@ -944,6 +951,297 @@ export function ConfigurationContent() {
               searchPlaceholder="Buscar categorías..."
             />
           )}
+        </TabsContent>
+
+        {/* Branding Tab */}
+        <TabsContent value="branding" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Color Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Palette className="h-5 w-5" />
+                  Colores de Marca
+                </CardTitle>
+                <CardDescription>
+                  Personaliza los colores de la página de inicio y login
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="primary-color" className="flex items-center gap-2 mb-2">
+                      <Wrench className="h-4 w-4" />
+                      Color Primario
+                    </Label>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Color principal usado en botones y acentos (ej: naranja tuning)
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        id="primary-color"
+                        type="color"
+                        value={configFormData.primary_color || '#f97316'}
+                        onChange={(e) =>
+                          setConfigFormData({ ...configFormData, primary_color: e.target.value })
+                        }
+                        className="w-16 h-12 cursor-pointer p-1"
+                      />
+                      <Input
+                        value={configFormData.primary_color || '#f97316'}
+                        onChange={(e) =>
+                          setConfigFormData({ ...configFormData, primary_color: e.target.value })
+                        }
+                        placeholder="#f97316"
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <Label htmlFor="secondary-color" className="flex items-center gap-2 mb-2">
+                      <Zap className="h-4 w-4" />
+                      Color Secundario
+                    </Label>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Color secundario para degradados y efectos (ej: rojo racing)
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        id="secondary-color"
+                        type="color"
+                        value={configFormData.secondary_color || '#ef4444'}
+                        onChange={(e) =>
+                          setConfigFormData({ ...configFormData, secondary_color: e.target.value })
+                        }
+                        className="w-16 h-12 cursor-pointer p-1"
+                      />
+                      <Input
+                        value={configFormData.secondary_color || '#ef4444'}
+                        onChange={(e) =>
+                          setConfigFormData({ ...configFormData, secondary_color: e.target.value })
+                        }
+                        placeholder="#ef4444"
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Quick Presets */}
+                <div>
+                  <Label className="mb-3 block">Paletas Predefinidas</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfigFormData({
+                        ...configFormData,
+                        primary_color: '#f97316',
+                        secondary_color: '#ef4444'
+                      })}
+                      className="h-auto py-2 flex flex-col gap-1"
+                    >
+                      <div className="flex gap-1">
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#f97316' }} />
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#ef4444' }} />
+                      </div>
+                      <span className="text-xs">Tuning</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfigFormData({
+                        ...configFormData,
+                        primary_color: '#3b82f6',
+                        secondary_color: '#06b6d4'
+                      })}
+                      className="h-auto py-2 flex flex-col gap-1"
+                    >
+                      <div className="flex gap-1">
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#06b6d4' }} />
+                      </div>
+                      <span className="text-xs">Tech</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfigFormData({
+                        ...configFormData,
+                        primary_color: '#22c55e',
+                        secondary_color: '#84cc16'
+                      })}
+                      className="h-auto py-2 flex flex-col gap-1"
+                    >
+                      <div className="flex gap-1">
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#22c55e' }} />
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#84cc16' }} />
+                      </div>
+                      <span className="text-xs">Eco</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfigFormData({
+                        ...configFormData,
+                        primary_color: '#a855f7',
+                        secondary_color: '#ec4899'
+                      })}
+                      className="h-auto py-2 flex flex-col gap-1"
+                    >
+                      <div className="flex gap-1">
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#a855f7' }} />
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#ec4899' }} />
+                      </div>
+                      <span className="text-xs">Moderno</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfigFormData({
+                        ...configFormData,
+                        primary_color: '#eab308',
+                        secondary_color: '#f59e0b'
+                      })}
+                      className="h-auto py-2 flex flex-col gap-1"
+                    >
+                      <div className="flex gap-1">
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#eab308' }} />
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#f59e0b' }} />
+                      </div>
+                      <span className="text-xs">Clásico</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfigFormData({
+                        ...configFormData,
+                        primary_color: '#dc2626',
+                        secondary_color: '#991b1b'
+                      })}
+                      className="h-auto py-2 flex flex-col gap-1"
+                    >
+                      <div className="flex gap-1">
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#dc2626' }} />
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#991b1b' }} />
+                      </div>
+                      <span className="text-xs">Racing</span>
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Live Preview */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Eye className="h-5 w-5" />
+                  Vista Previa
+                </CardTitle>
+                <CardDescription>
+                  Así se verá tu página de login
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div
+                  className="relative rounded-lg overflow-hidden border"
+                  style={{ height: '400px' }}
+                >
+                  {/* Mini Login Preview */}
+                  <div
+                    className="absolute inset-0 flex items-center justify-center"
+                    style={{
+                      background: `linear-gradient(135deg, ${configFormData.primary_color || '#f97316'} 0%, ${configFormData.secondary_color || '#ef4444'} 100%)`
+                    }}
+                  >
+                    {/* Preview Card */}
+                    <div className="bg-background/95 backdrop-blur-sm rounded-xl shadow-2xl p-6 w-[85%] max-w-[280px]">
+                      {/* Logo Preview */}
+                      <div className="text-center mb-4">
+                        <div
+                          className="w-14 h-14 mx-auto rounded-xl flex items-center justify-center mb-2"
+                          style={{
+                            background: `linear-gradient(135deg, ${configFormData.primary_color || '#f97316'} 0%, ${configFormData.secondary_color || '#ef4444'} 100%)`
+                          }}
+                        >
+                          <Wrench className="h-7 w-7 text-white" />
+                        </div>
+                        <h3 className="text-sm font-bold">{configFormData.name || 'Tu Taller'}</h3>
+                        <p className="text-[10px] text-muted-foreground">Sistema de Gestión</p>
+                      </div>
+
+                      {/* Form Preview */}
+                      <div className="space-y-3">
+                        <div className="h-8 bg-muted/50 rounded-md border" />
+                        <div className="h-8 bg-muted/50 rounded-md border" />
+                        <div
+                          className="h-8 rounded-md flex items-center justify-center text-white text-xs font-medium"
+                          style={{
+                            background: `linear-gradient(135deg, ${configFormData.primary_color || '#f97316'} 0%, ${configFormData.secondary_color || '#ef4444'} 100%)`
+                          }}
+                        >
+                          Iniciar Sesión
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Decorative Elements */}
+                  <div
+                    className="absolute top-4 right-4 w-20 h-20 rounded-full opacity-20"
+                    style={{ backgroundColor: configFormData.secondary_color || '#ef4444' }}
+                  />
+                  <div
+                    className="absolute bottom-4 left-4 w-16 h-16 rounded-full opacity-20"
+                    style={{ backgroundColor: configFormData.primary_color || '#f97316' }}
+                  />
+                </div>
+
+                {/* Preview Labels */}
+                <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: configFormData.primary_color || '#f97316' }}
+                    />
+                    <span>Primario</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: configFormData.secondary_color || '#ef4444' }}
+                    />
+                    <span>Secundario</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSaveConfig}
+              disabled={updateConfigMutation.isPending}
+            >
+              {updateConfigMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Guardar Colores
+                </>
+              )}
+            </Button>
+          </div>
         </TabsContent>
       </Tabs>
 
