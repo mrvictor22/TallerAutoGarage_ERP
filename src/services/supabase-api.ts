@@ -1190,10 +1190,34 @@ export const configApi = {
     const { data, error } = await supabase
       .from('workshop_config')
       .select('*')
-      .single()
+      .maybeSingle()
 
     if (error) {
       return createErrorResponse(error.message)
+    }
+
+    // If no config exists, create a default one
+    if (!data) {
+      const defaultConfig = {
+        name: 'Mi Taller',
+        order_prefix: 'ORD',
+        order_counter: 0,
+        currency: 'MXN',
+        tax_regime: 'general',
+        whatsapp_enabled: false
+      }
+
+      const { data: newConfig, error: insertError } = await supabase
+        .from('workshop_config')
+        .insert(defaultConfig)
+        .select()
+        .single()
+
+      if (insertError) {
+        return createErrorResponse(insertError.message)
+      }
+
+      return createSuccessResponse(newConfig)
     }
 
     return createSuccessResponse(data)

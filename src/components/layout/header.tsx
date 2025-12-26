@@ -15,7 +15,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { KeyboardShortcutsHelp } from '@/components/accessibility/keyboard-shortcuts-help';
-import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import {
   Sun,
   Moon,
@@ -23,10 +22,15 @@ import {
   LogOut,
   Settings,
   Bell,
-  Search
+  Search,
+  Menu
 } from 'lucide-react';
 
-export function Header() {
+interface HeaderProps {
+  onMenuClick?: () => void;
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
   const { theme, setTheme } = useTheme();
   const { user, logout } = useAuthStore();
   const router = useRouter();
@@ -42,6 +46,8 @@ export function Header() {
         return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
       case 'reception':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      case 'mechanic_lead':
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
       case 'technician':
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
       default:
@@ -55,6 +61,8 @@ export function Header() {
         return 'Administrador';
       case 'reception':
         return 'Recepción';
+      case 'mechanic_lead':
+        return 'Jefe Mecánicos';
       case 'technician':
         return 'Técnico';
       default:
@@ -63,10 +71,21 @@ export function Header() {
   };
 
   return (
-    <header className="flex h-16 items-center justify-between border-b bg-background px-6">
-      {/* Left side - could add breadcrumbs here */}
-      <div className="flex items-center gap-4">
-        {/* Global search button */}
+    <header className="flex h-14 md:h-16 items-center justify-between border-b bg-background px-4 md:px-6">
+      {/* Left side */}
+      <div className="flex items-center gap-2 md:gap-4">
+        {/* Mobile menu button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden"
+          onClick={onMenuClick}
+          aria-label="Abrir menú"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+
+        {/* Global search button - hidden on mobile */}
         <Button
           variant="outline"
           className="hidden md:flex w-64 justify-start gap-2 text-muted-foreground"
@@ -81,28 +100,43 @@ export function Header() {
             ⌘K
           </kbd>
         </Button>
+
+        {/* Mobile search button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
+          onClick={() => {
+            // TODO: Implement global search modal
+            console.log('Open search modal');
+          }}
+        >
+          <Search className="h-5 w-5" />
+        </Button>
       </div>
 
       {/* Right side */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 md:gap-4">
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-4 w-4" />
+          <Bell className="h-5 w-5" />
           <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 text-xs"></span>
         </Button>
 
-        {/* Keyboard shortcuts help */}
-        <KeyboardShortcutsHelp />
+        {/* Keyboard shortcuts help - hidden on mobile */}
+        <div className="hidden md:block">
+          <KeyboardShortcutsHelp />
+        </div>
 
         {/* Theme toggle */}
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-          title="Cambiar tema (Ctrl + Shift + T)"
+          title="Cambiar tema"
         >
-          <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+          <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+          <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           <span className="sr-only">Toggle theme</span>
         </Button>
 
@@ -112,12 +146,12 @@ export function Header() {
             <Button variant="ghost" className="relative h-10 w-auto gap-2 px-2">
               <Avatar className="h-8 w-8">
                 <AvatarImage src={user?.avatar_url || ''} alt={user?.full_name || ''} />
-                <AvatarFallback>
+                <AvatarFallback className="text-xs">
                   {user?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
               <div className="hidden md:flex flex-col items-start">
-                <span className="text-sm font-medium">{user?.full_name}</span>
+                <span className="text-sm font-medium truncate max-w-[120px]">{user?.full_name}</span>
                 <Badge
                   variant="secondary"
                   className={`text-xs ${getRoleColor(user?.role || '')}`}
@@ -134,6 +168,12 @@ export function Header() {
                 <p className="text-xs leading-none text-muted-foreground">
                   {user?.email}
                 </p>
+                <Badge
+                  variant="secondary"
+                  className={`text-xs mt-1 w-fit ${getRoleColor(user?.role || '')}`}
+                >
+                  {getRoleLabel(user?.role || '')}
+                </Badge>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

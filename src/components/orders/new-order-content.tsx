@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ordersApi, ownersApi, vehiclesApi, configApi, usersApi } from '@/services/supabase-api';
-import { OrderInsert, Owner, Vehicle } from '@/types/database';
+import { OrderInsert, Owner, Vehicle, OwnerInsert, VehicleInsert } from '@/types/database';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,13 +30,22 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Check, ChevronsUpDown, User, Car, FileText, Loader2 } from 'lucide-react';
+import { ArrowLeft, Check, ChevronsUpDown, User, Car, FileText, Loader2, Plus, Phone, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 export function NewOrderContent() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [currentStep, setCurrentStep] = useState(1);
 
   // Form state
@@ -49,6 +58,23 @@ export function NewOrderContent() {
   const [fuelLevel, setFuelLevel] = useState('');
   const [commitmentDate, setCommitmentDate] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
+
+  // Modal states
+  const [showNewOwnerModal, setShowNewOwnerModal] = useState(false);
+  const [showNewVehicleModal, setShowNewVehicleModal] = useState(false);
+
+  // New owner form state
+  const [newOwnerName, setNewOwnerName] = useState('');
+  const [newOwnerPhone, setNewOwnerPhone] = useState('');
+  const [newOwnerEmail, setNewOwnerEmail] = useState('');
+  const [newOwnerType, setNewOwnerType] = useState<'person' | 'company'>('person');
+
+  // New vehicle form state
+  const [newVehiclePlate, setNewVehiclePlate] = useState('');
+  const [newVehicleBrand, setNewVehicleBrand] = useState('');
+  const [newVehicleModel, setNewVehicleModel] = useState('');
+  const [newVehicleYear, setNewVehicleYear] = useState('');
+  const [newVehicleColor, setNewVehicleColor] = useState('');
 
   // Fetch owners for selection
   const { data: ownersResponse, isLoading: ownersLoading } = useQuery({
@@ -103,10 +129,55 @@ export function NewOrderContent() {
     queryFn: async () => {
       const response = await configApi.getWorkshopConfig();
       if (!response.success) {
-        toast.error('Error al cargar configuración');
         return null;
       }
       return response.data;
+    }
+  });
+
+  // Create owner mutation
+  const createOwnerMutation = useMutation({
+    mutationFn: async (owner: OwnerInsert) => {
+      const response = await ownersApi.createOwner(owner);
+      if (!response.success) {
+        throw new Error(response.error || 'Error al crear cliente');
+      }
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success('Cliente creado exitosamente');
+      queryClient.invalidateQueries({ queryKey: ['owners'] });
+      if (data) {
+        setSelectedOwnerId(data.id);
+      }
+      resetNewOwnerForm();
+      setShowNewOwnerModal(false);
+    },
+    onError: (error: Error) => {
+      toast.error(error?.message || 'Error al crear cliente');
+    }
+  });
+
+  // Create vehicle mutation
+  const createVehicleMutation = useMutation({
+    mutationFn: async (vehicle: VehicleInsert) => {
+      const response = await vehiclesApi.createVehicle(vehicle);
+      if (!response.success) {
+        throw new Error(response.error || 'Error al crear vehículo');
+      }
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success('Vehículo creado exitosamente');
+      queryClient.invalidateQueries({ queryKey: ['vehicles', 'owner', selectedOwnerId] });
+      if (data) {
+        setSelectedVehicleId(data.id);
+      }
+      resetNewVehicleForm();
+      setShowNewVehicleModal(false);
+    },
+    onError: (error: Error) => {
+      toast.error(error?.message || 'Error al crear vehículo');
     }
   });
 
@@ -136,6 +207,60 @@ export function NewOrderContent() {
     const prefix = configResponse.order_prefix || 'ORD';
     const counter = (configResponse.order_counter || 0) + 1;
     return `${prefix}-${counter.toString().padStart(4, '0')} (aprox.)`;
+  };
+
+  const resetNewOwnerForm = () => {
+    setNewOwnerName('');
+    setNewOwnerPhone('');
+    setNewOwnerEmail('');
+    setNewOwnerType('person');
+  };
+
+  const resetNewVehicleForm = () => {
+    setNewVehiclePlate('');
+    setNewVehicleBrand('');
+    setNewVehicleModel('');
+    setNewVehicleYear('');
+    setNewVehicleColor('');
+  };
+
+  const handleCreateOwner = () => {
+    if (!newOwnerName.trim() || !newOwnerPhone.trim()) {
+      toast.error('Nombre y teléfono son requeridos');
+      return;
+    }
+
+    const ownerData: OwnerInsert = {
+      name: newOwnerName.trim(),
+      phone: newOwnerPhone.trim(),
+      email: newOwnerEmail.trim() || null,
+      type: newOwnerType,
+      whatsapp_consent: true,
+      tags: [],
+      total_spent: 0,
+      total_orders: 0
+    };
+
+    createOwnerMutation.mutate(ownerData);
+  };
+
+  const handleCreateVehicle = () => {
+    if (!newVehiclePlate.trim() || !newVehicleBrand.trim() || !newVehicleModel.trim() || !newVehicleYear) {
+      toast.error('Placa, marca, modelo y año son requeridos');
+      return;
+    }
+
+    const vehicleData: VehicleInsert = {
+      owner_id: selectedOwnerId,
+      plate: newVehiclePlate.trim().toUpperCase(),
+      brand: newVehicleBrand.trim(),
+      model: newVehicleModel.trim(),
+      year: parseInt(newVehicleYear),
+      color: newVehicleColor.trim() || null,
+      photos: []
+    };
+
+    createVehicleMutation.mutate(vehicleData);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -180,58 +305,59 @@ export function NewOrderContent() {
   const canSubmit = reason !== '';
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-4 md:space-y-6 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+      <div className="flex items-center gap-3 md:gap-4">
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="shrink-0">
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Nueva Orden de Trabajo</h1>
-          <p className="text-muted-foreground">
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-3xl font-bold tracking-tight">Nueva Orden</h1>
+          <p className="text-sm text-muted-foreground">
             Folio: {generateFolioPreview()}
           </p>
         </div>
       </div>
 
       {/* Progress Steps */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between px-2">
         {[
-          { num: 1, label: 'Seleccionar Cliente', icon: User },
-          { num: 2, label: 'Seleccionar Vehículo', icon: Car },
-          { num: 3, label: 'Detalles del Servicio', icon: FileText }
+          { num: 1, label: 'Cliente', mobileLabel: 'Cliente', icon: User },
+          { num: 2, label: 'Vehículo', mobileLabel: 'Vehículo', icon: Car },
+          { num: 3, label: 'Servicio', mobileLabel: 'Servicio', icon: FileText }
         ].map((step, index) => (
           <div key={step.num} className="flex items-center flex-1">
             <div className="flex flex-col items-center flex-1">
               <div
                 className={cn(
-                  'w-10 h-10 rounded-full flex items-center justify-center border-2',
+                  'w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center border-2 transition-colors',
                   currentStep >= step.num
                     ? 'bg-primary border-primary text-primary-foreground'
                     : 'border-muted-foreground text-muted-foreground'
                 )}
               >
                 {currentStep > step.num ? (
-                  <Check className="h-5 w-5" />
+                  <Check className="h-4 w-4 md:h-5 md:w-5" />
                 ) : (
-                  <step.icon className="h-5 w-5" />
+                  <step.icon className="h-4 w-4 md:h-5 md:w-5" />
                 )}
               </div>
               <span
                 className={cn(
-                  'text-sm mt-2 text-center',
+                  'text-xs md:text-sm mt-1.5 md:mt-2 text-center',
                   currentStep >= step.num
                     ? 'text-foreground font-medium'
                     : 'text-muted-foreground'
                 )}
               >
-                {step.label}
+                <span className="hidden sm:inline">{step.label}</span>
+                <span className="sm:hidden">{step.mobileLabel}</span>
               </span>
             </div>
             {index < 2 && (
               <div
                 className={cn(
-                  'h-0.5 flex-1 mx-4',
+                  'h-0.5 flex-1 mx-2 md:mx-4',
                   currentStep > step.num ? 'bg-primary' : 'bg-muted'
                 )}
               />
@@ -345,8 +471,9 @@ export function NewOrderContent() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => router.push('/es/duenos/nuevo')}
+                  onClick={() => setShowNewOwnerModal(true)}
                 >
+                  <Plus className="h-4 w-4 mr-2" />
                   Crear Nuevo Cliente
                 </Button>
                 <Button
@@ -386,8 +513,9 @@ export function NewOrderContent() {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => router.push(`/es/vehiculos/nuevo?owner_id=${selectedOwnerId}`)}
+                      onClick={() => setShowNewVehicleModal(true)}
                     >
+                      <Plus className="h-4 w-4 mr-2" />
                       Registrar Vehículo
                     </Button>
                   </div>
@@ -406,6 +534,19 @@ export function NewOrderContent() {
                   </Select>
                 )}
               </div>
+
+              {vehicles.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowNewVehicleModal(true)}
+                  className="text-muted-foreground"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Agregar otro vehículo
+                </Button>
+              )}
 
               {selectedVehicle && (
                 <div className="p-4 border rounded-lg bg-muted/50">
@@ -496,12 +637,13 @@ export function NewOrderContent() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="mileage">Kilometraje de Entrada</Label>
                   <Input
                     id="mileage"
                     type="number"
+                    inputMode="numeric"
                     value={entryMileage}
                     onChange={(e) => setEntryMileage(e.target.value)}
                     placeholder="125000"
@@ -512,6 +654,7 @@ export function NewOrderContent() {
                   <Input
                     id="fuel"
                     type="number"
+                    inputMode="numeric"
                     min="0"
                     max="100"
                     value={fuelLevel}
@@ -613,6 +756,188 @@ export function NewOrderContent() {
           </CardContent>
         </Card>
       )}
+
+      {/* New Owner Modal */}
+      <Dialog open={showNewOwnerModal} onOpenChange={setShowNewOwnerModal}>
+        <DialogContent className="w-[95vw] max-w-md mx-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Nuevo Cliente
+            </DialogTitle>
+            <DialogDescription>
+              Registra un nuevo cliente de forma rápida
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="new-owner-type">Tipo de Cliente</Label>
+              <Select value={newOwnerType} onValueChange={(v: 'person' | 'company') => setNewOwnerType(v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="person">Persona</SelectItem>
+                  <SelectItem value="company">Empresa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="new-owner-name">
+                {newOwnerType === 'company' ? 'Nombre de la Empresa' : 'Nombre Completo'} *
+              </Label>
+              <Input
+                id="new-owner-name"
+                value={newOwnerName}
+                onChange={(e) => setNewOwnerName(e.target.value)}
+                placeholder={newOwnerType === 'company' ? 'Ej: Transportes García S.A.' : 'Ej: Juan Pérez'}
+              />
+            </div>
+            <div>
+              <Label htmlFor="new-owner-phone">Teléfono *</Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="new-owner-phone"
+                  value={newOwnerPhone}
+                  onChange={(e) => setNewOwnerPhone(e.target.value)}
+                  placeholder="Ej: 5512345678"
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="new-owner-email">Email (Opcional)</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="new-owner-email"
+                  type="email"
+                  value={newOwnerEmail}
+                  onChange={(e) => setNewOwnerEmail(e.target.value)}
+                  placeholder="cliente@email.com"
+                  className="pl-10"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                resetNewOwnerForm();
+                setShowNewOwnerModal(false);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleCreateOwner}
+              disabled={createOwnerMutation.isPending}
+            >
+              {createOwnerMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Crear Cliente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Vehicle Modal */}
+      <Dialog open={showNewVehicleModal} onOpenChange={setShowNewVehicleModal}>
+        <DialogContent className="w-[95vw] max-w-md mx-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Car className="h-5 w-5" />
+              Nuevo Vehículo
+            </DialogTitle>
+            <DialogDescription>
+              Registra un nuevo vehículo para {selectedOwner?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="new-vehicle-plate">Placa *</Label>
+              <Input
+                id="new-vehicle-plate"
+                value={newVehiclePlate}
+                onChange={(e) => setNewVehiclePlate(e.target.value.toUpperCase())}
+                placeholder="Ej: ABC-123"
+                className="uppercase"
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="new-vehicle-brand">Marca *</Label>
+                <Input
+                  id="new-vehicle-brand"
+                  value={newVehicleBrand}
+                  onChange={(e) => setNewVehicleBrand(e.target.value)}
+                  placeholder="Ej: Toyota"
+                />
+              </div>
+              <div>
+                <Label htmlFor="new-vehicle-model">Modelo *</Label>
+                <Input
+                  id="new-vehicle-model"
+                  value={newVehicleModel}
+                  onChange={(e) => setNewVehicleModel(e.target.value)}
+                  placeholder="Ej: Corolla"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="new-vehicle-year">Año *</Label>
+                <Input
+                  id="new-vehicle-year"
+                  type="number"
+                  inputMode="numeric"
+                  min="1900"
+                  max={new Date().getFullYear() + 1}
+                  value={newVehicleYear}
+                  onChange={(e) => setNewVehicleYear(e.target.value)}
+                  placeholder="Ej: 2020"
+                />
+              </div>
+              <div>
+                <Label htmlFor="new-vehicle-color">Color</Label>
+                <Input
+                  id="new-vehicle-color"
+                  value={newVehicleColor}
+                  onChange={(e) => setNewVehicleColor(e.target.value)}
+                  placeholder="Ej: Blanco"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                resetNewVehicleForm();
+                setShowNewVehicleModal(false);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleCreateVehicle}
+              disabled={createVehicleMutation.isPending}
+            >
+              {createVehicleMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Crear Vehículo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

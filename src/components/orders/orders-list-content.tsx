@@ -280,28 +280,28 @@ export function OrdersListContent() {
   const hasActiveFilters = Object.keys(filters).length > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Órdenes de Trabajo</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Órdenes de Trabajo</h1>
+          <p className="text-sm text-muted-foreground">
             Gestiona todas las órdenes de trabajo del taller
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setShowFilters(!showFilters)}>
-            <Filter className="mr-2 h-4 w-4" />
-            Filtros
+          <Button variant="outline" size="sm" className="md:size-default" onClick={() => setShowFilters(!showFilters)}>
+            <Filter className="h-4 w-4 md:mr-2" />
+            <span className="hidden md:inline">Filtros</span>
             {hasActiveFilters && (
-              <Badge variant="secondary" className="ml-2">
+              <Badge variant="secondary" className="ml-1 md:ml-2">
                 {Object.keys(filters).length}
               </Badge>
             )}
           </Button>
-          <Button onClick={handleNewOrder}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nueva Orden
+          <Button size="sm" className="md:size-default" onClick={handleNewOrder}>
+            <Plus className="h-4 w-4 md:mr-2" />
+            <span className="hidden sm:inline">Nueva Orden</span>
           </Button>
         </div>
       </div>
@@ -379,23 +379,26 @@ export function OrdersListContent() {
       )}
 
       {/* View Toggle and Stats */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span>{orders.length} órdenes encontradas</span>
           {hasActiveFilters && (
-            <span>• Filtros aplicados</span>
+            <span className="hidden sm:inline">• Filtros aplicados</span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between sm:justify-end gap-2">
+          <Button variant="outline" size="sm" onClick={() => handleExport(orders)} className="sm:hidden">
+            <Download className="h-4 w-4" />
+          </Button>
           <Tabs value={view} onValueChange={(value) => setView(value as 'table' | 'cards')}>
-            <TabsList>
-              <TabsTrigger value="table">
-                <List className="h-4 w-4 mr-2" />
-                Lista
+            <TabsList className="h-9">
+              <TabsTrigger value="table" className="text-xs sm:text-sm">
+                <List className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Lista</span>
               </TabsTrigger>
-              <TabsTrigger value="cards">
-                <Grid3X3 className="h-4 w-4 mr-2" />
-                Tarjetas
+              <TabsTrigger value="cards" className="text-xs sm:text-sm">
+                <Grid3X3 className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Tarjetas</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>

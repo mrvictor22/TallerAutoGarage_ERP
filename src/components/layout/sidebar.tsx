@@ -8,6 +8,7 @@ import { useUIStore } from '@/stores/ui';
 import { useAuthStore } from '@/stores/auth';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   LayoutDashboard,
@@ -96,9 +97,10 @@ interface SidebarItemProps {
   item: NavItem;
   isCollapsed: boolean;
   level?: number;
+  onNavigate?: () => void;
 }
 
-function SidebarItem({ item, isCollapsed, level = 0 }: SidebarItemProps) {
+function SidebarItem({ item, isCollapsed, level = 0, onNavigate }: SidebarItemProps) {
   const pathname = usePathname();
   const { hasPermission } = useAuthStore();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -112,15 +114,23 @@ function SidebarItem({ item, isCollapsed, level = 0 }: SidebarItemProps) {
   const hasChildren = item.children && item.children.length > 0;
   const Icon = item.icon;
 
+  const handleClick = () => {
+    if (hasChildren) {
+      setIsExpanded(!isExpanded);
+    } else if (onNavigate) {
+      onNavigate();
+    }
+  };
+
   const itemContent = (
     <div
       className={cn(
-        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent hover:text-accent-foreground',
-        isActive && 'bg-accent text-accent-foreground',
+        'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all hover:bg-accent hover:text-accent-foreground',
+        isActive && 'bg-accent text-accent-foreground font-medium',
         level > 0 && 'ml-4'
       )}
     >
-      <Icon className="h-4 w-4 shrink-0" />
+      <Icon className="h-5 w-5 shrink-0" />
       {!isCollapsed && (
         <>
           <span className="truncate">{item.labelKey}</span>
@@ -142,7 +152,7 @@ function SidebarItem({ item, isCollapsed, level = 0 }: SidebarItemProps) {
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Link href={item.href}>
+            <Link href={item.href} onClick={onNavigate}>
               {itemContent}
             </Link>
           </TooltipTrigger>
@@ -158,17 +168,17 @@ function SidebarItem({ item, isCollapsed, level = 0 }: SidebarItemProps) {
     <div>
       {hasChildren ? (
         <button
-          onClick={() => setIsExpanded(!isExpanded)}
+          onClick={handleClick}
           className="w-full text-left"
         >
           {itemContent}
         </button>
       ) : (
-        <Link href={item.href}>
+        <Link href={item.href} onClick={onNavigate}>
           {itemContent}
         </Link>
       )}
-      
+
       {hasChildren && isExpanded && !isCollapsed && (
         <div className="mt-1 space-y-1">
           {item.children?.map((child) => (
@@ -177,6 +187,7 @@ function SidebarItem({ item, isCollapsed, level = 0 }: SidebarItemProps) {
               item={child}
               isCollapsed={isCollapsed}
               level={level + 1}
+              onNavigate={onNavigate}
             />
           ))}
         </div>
@@ -185,6 +196,7 @@ function SidebarItem({ item, isCollapsed, level = 0 }: SidebarItemProps) {
   );
 }
 
+// Desktop Sidebar
 export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
 
@@ -262,5 +274,47 @@ export function Sidebar() {
         )}
       </div>
     </div>
+  );
+}
+
+// Mobile Sidebar (Sheet)
+interface MobileSidebarProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function MobileSidebar({ open, onOpenChange }: MobileSidebarProps) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="left" className="w-72 p-0">
+        <SheetHeader className="p-4 border-b">
+          <SheetTitle className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Car className="h-4 w-4" />
+            </div>
+            <span>Taller Pro</span>
+          </SheetTitle>
+        </SheetHeader>
+
+        {/* Navigation */}
+        <nav className="flex-1 space-y-1 p-4">
+          {navItems.map((item) => (
+            <SidebarItem
+              key={item.href}
+              item={item}
+              isCollapsed={false}
+              onNavigate={() => onOpenChange(false)}
+            />
+          ))}
+        </nav>
+
+        {/* Footer */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-background">
+          <div className="text-xs text-muted-foreground text-center">
+            Taller Pro v1.0.0
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
