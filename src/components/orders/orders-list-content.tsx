@@ -216,19 +216,19 @@ export function OrdersListContent() {
   ];
 
   const handleViewOrder = (order: OrderWithRelations) => {
-    router.push(`/ordenes/${order.id}`);
+    router.push(`/es/ordenes/${order.id}`);
   };
 
   const handleEditOrder = (order: OrderWithRelations) => {
-    router.push(`/ordenes/${order.id}/editar`);
+    router.push(`/es/ordenes/${order.id}/editar`);
   };
 
   const handleSendMessage = (order: OrderWithRelations) => {
-    router.push(`/ordenes/${order.id}?tab=whatsapp`);
+    router.push(`/es/ordenes/${order.id}?tab=whatsapp`);
   };
 
   const handleNewOrder = () => {
-    router.push('/ordenes/nueva');
+    router.push('/es/ordenes/nueva');
   };
 
   const handleExport = (data: OrderWithRelations[]) => {
@@ -339,14 +339,14 @@ export function OrdersListContent() {
               <div>
                 <Label htmlFor="status">Estado</Label>
                 <Select
-                  value={filters.status?.[0] || ''}
-                  onValueChange={(value) => updateFilter('status', value ? [value as OrderStatus] : undefined)}
+                  value={filters.status?.[0] || '__all__'}
+                  onValueChange={(value) => updateFilter('status', value === '__all__' ? undefined : [value as OrderStatus])}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Todos los estados" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos los estados</SelectItem>
+                    <SelectItem value="__all__">Todos los estados</SelectItem>
                     {orderStatuses.map((status) => (
                       <SelectItem key={status.value} value={status.value}>
                         {status.label}

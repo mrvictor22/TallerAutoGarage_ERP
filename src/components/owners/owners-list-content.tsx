@@ -391,14 +391,14 @@ export function OwnersListContent() {
               <div>
                 <Label htmlFor="type">Tipo</Label>
                 <Select
-                  value={filters.type || ''}
-                  onValueChange={(value) => updateFilter('type', value || undefined)}
+                  value={filters.type || '__all__'}
+                  onValueChange={(value) => updateFilter('type', value === '__all__' ? undefined : value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Todos los tipos" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos los tipos</SelectItem>
+                    <SelectItem value="__all__">Todos los tipos</SelectItem>
                     <SelectItem value="person">Persona</SelectItem>
                     <SelectItem value="company">Empresa</SelectItem>
                   </SelectContent>
@@ -407,14 +407,14 @@ export function OwnersListContent() {
               <div>
                 <Label htmlFor="tags">Etiquetas</Label>
                 <Select
-                  value={filters.tags?.[0] || ''}
-                  onValueChange={(value) => updateFilter('tags', value ? [value] : undefined)}
+                  value={filters.tags?.[0] || '__all__'}
+                  onValueChange={(value) => updateFilter('tags', value === '__all__' ? undefined : [value])}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Todas las etiquetas" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas las etiquetas</SelectItem>
+                    <SelectItem value="__all__">Todas las etiquetas</SelectItem>
                     {allTags.map((tag) => (
                       <SelectItem key={tag} value={tag}>
                         {tag}

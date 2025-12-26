@@ -19,7 +19,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
-  Search
+  Search,
+  List
 } from 'lucide-react';
 
 interface NavItem {
@@ -32,19 +33,25 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   {
-    href: '/dashboard',
+    href: '/es/dashboard',
     icon: LayoutDashboard,
     labelKey: 'Panel de Control',
     permission: 'dashboard:read'
   },
   {
-    href: '/ordenes',
+    href: '/es/ordenes',
     icon: FileText,
     labelKey: 'Órdenes',
     permission: 'orders:read',
     children: [
       {
-        href: '/ordenes/nueva',
+        href: '/es/ordenes',
+        icon: List,
+        labelKey: 'Listar Órdenes',
+        permission: 'orders:read'
+      },
+      {
+        href: '/es/ordenes/nueva',
         icon: Plus,
         labelKey: 'Nueva Orden',
         permission: 'orders:create'
@@ -52,25 +59,25 @@ const navItems: NavItem[] = [
     ]
   },
   {
-    href: '/duenos',
+    href: '/es/duenos',
     icon: Users,
     labelKey: 'Dueños',
     permission: 'owners:read'
   },
   {
-    href: '/vehiculos',
+    href: '/es/vehiculos',
     icon: Car,
     labelKey: 'Vehículos',
     permission: 'vehicles:read'
   },
   {
-    href: '/notificaciones',
+    href: '/es/notificaciones',
     icon: MessageSquare,
     labelKey: 'Notificaciones',
     permission: 'whatsapp:read',
     children: [
       {
-        href: '/notificaciones/whatsapp',
+        href: '/es/notificaciones/whatsapp',
         icon: MessageSquare,
         labelKey: 'WhatsApp',
         permission: 'whatsapp:read'
@@ -78,7 +85,7 @@ const navItems: NavItem[] = [
     ]
   },
   {
-    href: '/configuracion',
+    href: '/es/configuracion',
     icon: Settings,
     labelKey: 'Configuración',
     permission: 'config:read'

@@ -82,10 +82,27 @@ export function VehicleForm({
 
   const ownerId = watch('owner_id');
 
+  // Fetch preselected owner details
+  const { data: preSelectedOwnerResponse } = useQuery({
+    queryKey: ['owner', preSelectedOwnerId],
+    queryFn: () => ownersApi.getOwner(preSelectedOwnerId!),
+    enabled: !!preSelectedOwnerId
+  });
+
+  const preSelectedOwner = preSelectedOwnerResponse?.success ? preSelectedOwnerResponse.data : null;
+
+  // Set owner_id when preSelectedOwnerId is provided
+  useEffect(() => {
+    if (preSelectedOwnerId) {
+      setValue('owner_id', preSelectedOwnerId);
+    }
+  }, [preSelectedOwnerId, setValue]);
+
   // Fetch owners for selector
   const { data: ownersResponse, isLoading: ownersLoading } = useQuery({
     queryKey: ['owners', { search: ownerSearch }],
-    queryFn: () => ownersApi.getOwners({ search: ownerSearch }, 1, 50)
+    queryFn: () => ownersApi.getOwners({ search: ownerSearch }, 1, 50),
+    enabled: !preSelectedOwnerId
   });
 
   const owners = ownersResponse?.success ? ownersResponse.data?.data || [] : [];
@@ -114,8 +131,15 @@ export function VehicleForm({
               Propietario <span className="text-red-500">*</span>
             </Label>
             {preSelectedOwnerId ? (
-              <div className="text-sm text-muted-foreground">
-                Propietario preseleccionado
+              <div className="p-3 border rounded-lg bg-muted/50">
+                {preSelectedOwner ? (
+                  <div>
+                    <p className="font-medium">{preSelectedOwner.name}</p>
+                    <p className="text-sm text-muted-foreground">{preSelectedOwner.phone}</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Cargando propietario...</p>
+                )}
               </div>
             ) : (
               <>
@@ -297,14 +321,14 @@ export function VehicleForm({
             <div className="space-y-2">
               <Label htmlFor="transmission">Transmisión</Label>
               <Select
-                value={watch('transmission') || ''}
-                onValueChange={(value) => setValue('transmission', value)}
+                value={watch('transmission') || '__none__'}
+                onValueChange={(value) => setValue('transmission', value === '__none__' ? '' : value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccione" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin especificar</SelectItem>
+                  <SelectItem value="__none__">Sin especificar</SelectItem>
                   <SelectItem value="Manual">Manual</SelectItem>
                   <SelectItem value="Automática">Automática</SelectItem>
                   <SelectItem value="CVT">CVT</SelectItem>
@@ -316,14 +340,14 @@ export function VehicleForm({
             <div className="space-y-2">
               <Label htmlFor="fuel_type">Tipo de Combustible</Label>
               <Select
-                value={watch('fuel_type') || ''}
-                onValueChange={(value) => setValue('fuel_type', value)}
+                value={watch('fuel_type') || '__none__'}
+                onValueChange={(value) => setValue('fuel_type', value === '__none__' ? '' : value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccione" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin especificar</SelectItem>
+                  <SelectItem value="__none__">Sin especificar</SelectItem>
                   <SelectItem value="Gasolina">Gasolina</SelectItem>
                   <SelectItem value="Diesel">Diesel</SelectItem>
                   <SelectItem value="Eléctrico">Eléctrico</SelectItem>

@@ -121,7 +121,7 @@ export function NewOrderContent() {
     },
     onSuccess: (data) => {
       toast.success('Orden creada exitosamente');
-      router.push(`/ordenes/${data?.id}`);
+      router.push(`/es/ordenes/${data?.id}`);
     },
     onError: (error: Error) => {
       toast.error(error?.message || 'Error al crear orden');
@@ -131,11 +131,11 @@ export function NewOrderContent() {
   const selectedOwner = owners.find(o => o.id === selectedOwnerId);
   const selectedVehicle = vehicles.find(v => v.id === selectedVehicleId);
 
-  const generateFolio = () => {
-    if (!configResponse) return 'ORD-0001';
+  const generateFolioPreview = () => {
+    if (!configResponse) return '(Automático)';
     const prefix = configResponse.order_prefix || 'ORD';
     const counter = (configResponse.order_counter || 0) + 1;
-    return `${prefix}-${counter.toString().padStart(4, '0')}`;
+    return `${prefix}-${counter.toString().padStart(4, '0')} (aprox.)`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -189,7 +189,7 @@ export function NewOrderContent() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Nueva Orden de Trabajo</h1>
           <p className="text-muted-foreground">
-            Folio: {generateFolio()}
+            Folio: {generateFolioPreview()}
           </p>
         </div>
       </div>
@@ -345,7 +345,7 @@ export function NewOrderContent() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => router.push('/duenos/nuevo')}
+                  onClick={() => router.push('/es/duenos/nuevo')}
                 >
                   Crear Nuevo Cliente
                 </Button>
@@ -386,7 +386,7 @@ export function NewOrderContent() {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => router.push(`/vehiculos/nuevo?owner_id=${selectedOwnerId}`)}
+                      onClick={() => router.push(`/es/vehiculos/nuevo?owner_id=${selectedOwnerId}`)}
                     >
                       Registrar Vehículo
                     </Button>
@@ -523,12 +523,15 @@ export function NewOrderContent() {
 
               <div>
                 <Label htmlFor="technician">Técnico Asignado</Label>
-                <Select value={technicianId} onValueChange={setTechnicianId}>
+                <Select
+                  value={technicianId || '__none__'}
+                  onValueChange={(value) => setTechnicianId(value === '__none__' ? '' : value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Asignar más tarde" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin asignar</SelectItem>
+                    <SelectItem value="__none__">Sin asignar</SelectItem>
                     {technicians.map((tech) => (
                       <SelectItem key={tech.id} value={tech.id}>
                         {tech.full_name}

@@ -359,7 +359,7 @@ export const ordersApi = {
         *,
         owner:owners(*),
         vehicle:vehicles(*),
-        technician:profiles(*),
+        technician:profiles!technician_id(*),
         budget_lines(*),
         timeline_entries(*),
         payments(*),
@@ -422,9 +422,9 @@ export const ordersApi = {
         *,
         owner:owners(*),
         vehicle:vehicles(*),
-        technician:profiles(*),
+        technician:profiles!technician_id(*),
         budget_lines(*),
-        timeline_entries(*, author:profiles(*)),
+        timeline_entries(*, author:profiles!author_id(*)),
         payments(*),
         parts_invoices(*),
         messages:whatsapp_messages(*)
@@ -433,7 +433,12 @@ export const ordersApi = {
       .single()
 
     if (error) {
+      console.error('Error fetching order:', error)
       return createErrorResponse(error.message)
+    }
+
+    if (!data) {
+      return createErrorResponse('Orden no encontrada')
     }
 
     return createSuccessResponse(data as OrderWithRelations)
@@ -451,18 +456,36 @@ export const ordersApi = {
         .select('id, order_prefix, order_counter')
         .single()
 
-      if (config) {
-        const prefix = config.order_prefix || 'ORD'
-        const counter = (config.order_counter || 0) + 1
-        folio = `${prefix}-${counter.toString().padStart(4, '0')}`
+      const prefix = config?.order_prefix || 'ORD'
 
-        // Update counter
+      // Get the highest folio number from existing orders
+      const { data: lastOrder } = await supabase
+        .from('orders')
+        .select('folio')
+        .like('folio', `${prefix}-%`)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      let nextCounter = 1
+      if (lastOrder?.folio) {
+        // Extract number from folio (e.g., "ORD-0001" -> 1)
+        const match = lastOrder.folio.match(/-(\d+)$/)
+        if (match) {
+          nextCounter = parseInt(match[1], 10) + 1
+        }
+      } else if (config?.order_counter) {
+        nextCounter = config.order_counter + 1
+      }
+
+      folio = `${prefix}-${nextCounter.toString().padStart(4, '0')}`
+
+      // Update counter in config
+      if (config) {
         await supabase
           .from('workshop_config')
-          .update({ order_counter: counter })
+          .update({ order_counter: nextCounter })
           .eq('id', config.id)
-      } else {
-        folio = `ORD-0001`
       }
     }
 
@@ -701,7 +724,7 @@ export const timelineApi = {
 
     const { data, error } = await supabase
       .from('timeline_entries')
-      .select('*, author:profiles(*)')
+      .select('*, author:profiles!author_id(*)')
       .eq('order_id', orderId)
       .order('created_at', { ascending: false })
 
@@ -719,7 +742,7 @@ export const timelineApi = {
     const { data, error } = await supabase
       .from('timeline_entries')
       .insert({ ...entry, author_id: user?.id ?? '' })
-      .select('*, author:profiles(*)')
+      .select('*, author:profiles!author_id(*)')
       .single()
 
     if (error) {
@@ -979,7 +1002,7 @@ export const dashboardApi = {
 
     const { data, error } = await supabase
       .from('timeline_entries')
-      .select('*, author:profiles(*), order:orders(folio)')
+      .select('*, author:profiles!author_id(*), order:orders(folio)')
       .order('created_at', { ascending: false })
       .limit(limit)
 
@@ -1100,16 +1123,17 @@ export const usersApi = {
       return createErrorResponse('Error al crear usuario')
     }
 
-    // Update profile with additional data
+    // Create or update profile with additional data
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .update({
+      .upsert({
+        id: authData.user.id,
+        email: userData.email,
         full_name: userData.full_name,
         role: userData.role,
         phone: userData.phone,
         is_active: true
       })
-      .eq('id', authData.user.id)
       .select()
       .single()
 

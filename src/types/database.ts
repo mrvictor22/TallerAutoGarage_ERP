@@ -6,7 +6,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type UserRole = 'admin' | 'reception' | 'technician'
+export type UserRole = 'admin' | 'reception' | 'mechanic_lead' | 'technician'
 export type OwnerType = 'person' | 'company'
 export type OrderStatus =
   | 'new'

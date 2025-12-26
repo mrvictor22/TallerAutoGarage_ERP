@@ -17,7 +17,8 @@ export default function NewVehiclePage() {
   const [preSelectedOwnerId, setPreSelectedOwnerId] = useState<string | undefined>();
 
   useEffect(() => {
-    const ownerId = searchParams.get('ownerId');
+    // Support both ownerId and owner_id parameters
+    const ownerId = searchParams.get('ownerId') || searchParams.get('owner_id');
     if (ownerId) {
       setPreSelectedOwnerId(ownerId);
     }
@@ -53,7 +54,7 @@ export default function NewVehiclePage() {
         queryClient.invalidateQueries({ queryKey: ['vehicles', { owner_id: preSelectedOwnerId }] });
         queryClient.invalidateQueries({ queryKey: ['owner', preSelectedOwnerId] });
       }
-      router.push(`/vehiculos/${vehicle?.id}`);
+      router.push(`/es/vehiculos/${vehicle?.id}`);
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Error al crear vehículo');
@@ -66,9 +67,9 @@ export default function NewVehiclePage() {
 
   const handleCancel = () => {
     if (preSelectedOwnerId) {
-      router.push(`/duenos/${preSelectedOwnerId}?tab=vehiculos`);
+      router.push(`/es/duenos/${preSelectedOwnerId}?tab=vehiculos`);
     } else {
-      router.push('/vehiculos');
+      router.push('/es/vehiculos');
     }
   };
 

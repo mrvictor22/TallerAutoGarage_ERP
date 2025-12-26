@@ -63,7 +63,7 @@ interface UserFormData {
   full_name: string;
   email: string;
   password?: string;
-  role: 'admin' | 'reception' | 'technician';
+  role: 'admin' | 'reception' | 'mechanic_lead' | 'technician';
   phone?: string;
   is_active: boolean;
 }
@@ -112,7 +112,7 @@ export function ConfigurationContent() {
   useEffect(() => {
     if (!isAdmin()) {
       toast.error('No tienes permisos para acceder a esta sección');
-      router.push('/');
+      router.push('/es/dashboard');
     }
   }, [isAdmin, router]);
 
@@ -305,11 +305,14 @@ export function ConfigurationContent() {
           <Badge
             variant={
               role === 'admin' ? 'default' :
-              role === 'reception' ? 'secondary' : 'outline'
+              role === 'reception' ? 'secondary' :
+              role === 'mechanic_lead' ? 'default' : 'outline'
             }
+            className={role === 'mechanic_lead' ? 'bg-blue-600' : ''}
           >
             {role === 'admin' && 'Administrador'}
             {role === 'reception' && 'Recepción'}
+            {role === 'mechanic_lead' && 'Jefe de Mecánicos'}
             {role === 'technician' && 'Técnico'}
           </Badge>
         );
@@ -963,7 +966,7 @@ export function ConfigurationContent() {
               <Label htmlFor="user-role">Rol *</Label>
               <Select
                 value={userFormData.role}
-                onValueChange={(value: 'admin' | 'reception' | 'technician') => setUserFormData({ ...userFormData, role: value })}
+                onValueChange={(value: 'admin' | 'reception' | 'mechanic_lead' | 'technician') => setUserFormData({ ...userFormData, role: value })}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -971,6 +974,7 @@ export function ConfigurationContent() {
                 <SelectContent>
                   <SelectItem value="admin">Administrador</SelectItem>
                   <SelectItem value="reception">Recepción</SelectItem>
+                  <SelectItem value="mechanic_lead">Jefe de Mecánicos</SelectItem>
                   <SelectItem value="technician">Técnico</SelectItem>
                 </SelectContent>
               </Select>

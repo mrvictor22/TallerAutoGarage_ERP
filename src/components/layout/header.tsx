@@ -33,7 +33,7 @@ export function Header() {
 
   const handleLogout = async () => {
     await logout();
-    router.push('/login');
+    router.push('/es/login');
   };
 
   const getRoleColor = (role: string) => {

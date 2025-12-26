@@ -67,7 +67,7 @@ export default function VehicleEditPage({ params }: VehicleEditPageProps) {
         queryClient.invalidateQueries({ queryKey: ['vehicles', { owner_id: vehicle.owner_id }] });
         queryClient.invalidateQueries({ queryKey: ['owner', vehicle.owner_id] });
       }
-      router.push(`/vehiculos/${vehicleId}`);
+      router.push(`/es/vehiculos/${vehicleId}`);
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Error al actualizar vehículo');
@@ -79,7 +79,7 @@ export default function VehicleEditPage({ params }: VehicleEditPageProps) {
   };
 
   const handleCancel = () => {
-    router.push(`/vehiculos/${vehicleId}`);
+    router.push(`/es/vehiculos/${vehicleId}`);
   };
 
   if (error) {
@@ -91,7 +91,7 @@ export default function VehicleEditPage({ params }: VehicleEditPageProps) {
             <p className="text-muted-foreground mb-4">
               No se pudo cargar la información del vehículo
             </p>
-            <Button onClick={() => router.push('/vehiculos')} variant="outline">
+            <Button onClick={() => router.push('/es/vehiculos')} variant="outline">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Volver a la lista
             </Button>
@@ -127,7 +127,7 @@ export default function VehicleEditPage({ params }: VehicleEditPageProps) {
             <p className="text-muted-foreground mb-4">
               El vehículo que buscas no existe o ha sido eliminado
             </p>
-            <Button onClick={() => router.push('/vehiculos')} variant="outline">
+            <Button onClick={() => router.push('/es/vehiculos')} variant="outline">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Volver a la lista
             </Button>

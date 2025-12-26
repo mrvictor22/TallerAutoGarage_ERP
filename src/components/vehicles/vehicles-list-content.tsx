@@ -220,19 +220,19 @@ export function VehiclesListContent() {
   ];
 
   const handleViewVehicle = (vehicle: VehicleWithRelations) => {
-    router.push(`/vehiculos/${vehicle.id}`);
+    router.push(`/es/vehiculos/${vehicle.id}`);
   };
 
   const handleEditVehicle = (vehicle: VehicleWithRelations) => {
-    router.push(`/vehiculos/${vehicle.id}/editar`);
+    router.push(`/es/vehiculos/${vehicle.id}/editar`);
   };
 
   const handleNewOrder = (vehicle: VehicleWithRelations) => {
-    router.push(`/ordenes/nueva?vehicleId=${vehicle.id}`);
+    router.push(`/es/ordenes/nueva?vehicleId=${vehicle.id}`);
   };
 
   const handleNewVehicle = () => {
-    router.push('/vehiculos/nuevo');
+    router.push('/es/vehiculos/nuevo');
   };
 
   const handleDeleteClick = (vehicle: VehicleWithRelations) => {
@@ -372,14 +372,14 @@ export function VehiclesListContent() {
               <div>
                 <Label htmlFor="brand">Marca</Label>
                 <Select
-                  value={filters.brand || ''}
-                  onValueChange={(value) => updateFilter('brand', value || undefined)}
+                  value={filters.brand || '__all__'}
+                  onValueChange={(value) => updateFilter('brand', value === '__all__' ? undefined : value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Todas las marcas" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas las marcas</SelectItem>
+                    <SelectItem value="__all__">Todas las marcas</SelectItem>
                     {allBrands.map((brand) => (
                       <SelectItem key={brand} value={brand}>
                         {brand}
@@ -391,14 +391,14 @@ export function VehiclesListContent() {
               <div>
                 <Label htmlFor="year">Año</Label>
                 <Select
-                  value={filters.year?.toString() || ''}
-                  onValueChange={(value) => updateFilter('year', value ? parseInt(value) : undefined)}
+                  value={filters.year?.toString() || '__all__'}
+                  onValueChange={(value) => updateFilter('year', value === '__all__' ? undefined : parseInt(value))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Todos los años" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos los años</SelectItem>
+                    <SelectItem value="__all__">Todos los años</SelectItem>
                     {allYears.map((year) => (
                       <SelectItem key={year} value={year.toString()}>
                         {year}

@@ -114,14 +114,14 @@ export function OwnerDetailContent({ ownerId, defaultTab = 'resumen' }: OwnerDet
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => router.push(`/vehiculos/${vehicle.id}`)}
+              onClick={() => router.push(`/es/vehiculos/${vehicle.id}`)}
             >
               <Eye className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => router.push(`/ordenes/nueva?vehicleId=${vehicle.id}`)}
+              onClick={() => router.push(`/es/ordenes/nueva?vehicleId=${vehicle.id}`)}
             >
               <Wrench className="h-4 w-4" />
             </Button>
@@ -132,19 +132,19 @@ export function OwnerDetailContent({ ownerId, defaultTab = 'resumen' }: OwnerDet
   ];
 
   const handleBack = () => {
-    router.push('/duenos');
+    router.push('/es/duenos');
   };
 
   const handleEdit = () => {
-    router.push(`/duenos/${ownerId}/editar`);
+    router.push(`/es/duenos/${ownerId}/editar`);
   };
 
   const handleNewOrder = () => {
-    router.push(`/ordenes/nueva?ownerId=${ownerId}`);
+    router.push(`/es/ordenes/nueva?ownerId=${ownerId}`);
   };
 
   const handleNewVehicle = () => {
-    router.push(`/vehiculos/nuevo?ownerId=${ownerId}`);
+    router.push(`/es/vehiculos/nuevo?ownerId=${ownerId}`);
   };
 
   if (error) {
@@ -427,7 +427,7 @@ export function OwnerDetailContent({ ownerId, defaultTab = 'resumen' }: OwnerDet
               {orders.length > 0 ? (
                 <div className="space-y-3">
                   {orders.slice(0, 4).map((order) => (
-                    <Card key={order.id} className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => router.push(`/ordenes/${order.id}`)}>
+                    <Card key={order.id} className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => router.push(`/es/ordenes/${order.id}`)}>
                       <CardContent className="pt-4">
                         <div className="flex items-center justify-between">
                           <div className="space-y-1">
@@ -515,7 +515,7 @@ export function OwnerDetailContent({ ownerId, defaultTab = 'resumen' }: OwnerDet
           {orders.length > 0 ? (
             <div className="space-y-3">
               {orders.map((order) => (
-                <Card key={order.id} className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => router.push(`/ordenes/${order.id}`)}>
+                <Card key={order.id} className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => router.push(`/es/ordenes/${order.id}`)}>
                   <CardContent className="pt-4">
                     <div className="flex items-center justify-between">
                       <div className="space-y-1 flex-1">
