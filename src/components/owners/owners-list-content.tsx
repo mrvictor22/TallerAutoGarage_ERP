@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
 import { ownersApi } from '@/services/supabase-api';
@@ -25,8 +25,19 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { formatPhone } from '@/lib/utils';
 import {
   Plus,
@@ -43,19 +54,39 @@ import {
   Car,
   FileText,
   X,
-  Search
+  Search,
+  Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function OwnersListContent() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [filters, setFilters] = useState<OwnerFilters>({});
   const [showFilters, setShowFilters] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [ownerToDelete, setOwnerToDelete] = useState<OwnerWithRelations | null>(null);
 
   // Fetch owners
   const { data: ownersResponse, isLoading } = useQuery({
     queryKey: ['owners', filters],
     queryFn: () => ownersApi.getOwners(filters, 1, 50)
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => ownersApi.deleteOwner(id),
+    onSuccess: (response) => {
+      if (response.success) {
+        toast.success(response.message || 'Cliente eliminado exitosamente');
+        queryClient.invalidateQueries({ queryKey: ['owners'] });
+      } else {
+        toast.error(response.error || 'Error al eliminar el cliente');
+      }
+    },
+    onError: () => {
+      toast.error('Error al eliminar el cliente');
+    }
   });
 
   const owners = ownersResponse?.success && ownersResponse.data ? ownersResponse.data.data : [];
@@ -180,6 +211,8 @@ export function OwnersListContent() {
       header: 'Acciones',
       cell: ({ row }) => {
         const owner = row.original;
+        const canDelete = !owner.vehicles?.length && !owner.orders?.length;
+
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -202,6 +235,15 @@ export function OwnersListContent() {
                   Enviar WhatsApp
                 </DropdownMenuItem>
               )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => handleDeleteOwner(owner)}
+                disabled={!canDelete}
+                className="text-red-600 focus:text-red-600"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Eliminar
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         );
@@ -210,20 +252,37 @@ export function OwnersListContent() {
   ];
 
   const handleViewOwner = (owner: OwnerWithRelations) => {
-    router.push(`/duenos/${owner.id}`);
+    router.push(`/es/duenos/${owner.id}`);
   };
 
   const handleEditOwner = (owner: OwnerWithRelations) => {
-    router.push(`/duenos/${owner.id}/editar`);
+    router.push(`/es/duenos/${owner.id}/editar`);
   };
 
   const handleSendMessage = (owner: OwnerWithRelations) => {
     // Navigate to WhatsApp with owner context
-    router.push(`/notificaciones/whatsapp?ownerId=${owner.id}`);
+    router.push(`/es/notificaciones/whatsapp?ownerId=${owner.id}`);
+  };
+
+  const handleDeleteOwner = (owner: OwnerWithRelations) => {
+    if (owner.vehicles?.length || owner.orders?.length) {
+      toast.error('No se puede eliminar: el cliente tiene vehículos u órdenes asociadas');
+      return;
+    }
+    setOwnerToDelete(owner);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (ownerToDelete) {
+      deleteMutation.mutate(ownerToDelete.id);
+      setDeleteDialogOpen(false);
+      setOwnerToDelete(null);
+    }
   };
 
   const handleNewOwner = () => {
-    router.push('/duenos/nuevo');
+    router.push('/es/duenos/nuevo');
   };
 
   const handleExport = (data: OwnerWithRelations[]) => {
@@ -257,7 +316,7 @@ export function OwnersListContent() {
     toast.success('Archivo exportado exitosamente');
   };
 
-  const updateFilter = (key: keyof OwnerFilters, value: any) => {
+  const updateFilter = (key: keyof OwnerFilters, value: unknown) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
@@ -332,14 +391,14 @@ export function OwnersListContent() {
               <div>
                 <Label htmlFor="type">Tipo</Label>
                 <Select
-                  value={filters.type || ''}
-                  onValueChange={(value) => updateFilter('type', value || undefined)}
+                  value={filters.type || '__all__'}
+                  onValueChange={(value) => updateFilter('type', value === '__all__' ? undefined : value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Todos los tipos" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos los tipos</SelectItem>
+                    <SelectItem value="__all__">Todos los tipos</SelectItem>
                     <SelectItem value="person">Persona</SelectItem>
                     <SelectItem value="company">Empresa</SelectItem>
                   </SelectContent>
@@ -348,14 +407,14 @@ export function OwnersListContent() {
               <div>
                 <Label htmlFor="tags">Etiquetas</Label>
                 <Select
-                  value={filters.tags?.[0] || ''}
-                  onValueChange={(value) => updateFilter('tags', value ? [value] : undefined)}
+                  value={filters.tags?.[0] || '__all__'}
+                  onValueChange={(value) => updateFilter('tags', value === '__all__' ? undefined : [value])}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Todas las etiquetas" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas las etiquetas</SelectItem>
+                    <SelectItem value="__all__">Todas las etiquetas</SelectItem>
                     {allTags.map((tag) => (
                       <SelectItem key={tag} value={tag}>
                         {tag}
@@ -462,6 +521,28 @@ export function OwnersListContent() {
           )}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente el cliente
+              <strong> {ownerToDelete?.name}</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -142,7 +142,7 @@ export function VehicleDetailContent({ vehicleId, defaultTab = 'resumen' }: Vehi
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.push(`/ordenes/${order.id}`)}
+            onClick={() => router.push(`/es/ordenes/${order.id}`)}
           >
             <Eye className="h-4 w-4" />
           </Button>
@@ -152,20 +152,20 @@ export function VehicleDetailContent({ vehicleId, defaultTab = 'resumen' }: Vehi
   ];
 
   const handleBack = () => {
-    router.push('/vehiculos');
+    router.push('/es/vehiculos');
   };
 
   const handleEdit = () => {
-    router.push(`/vehiculos/${vehicleId}/editar`);
+    router.push(`/es/vehiculos/${vehicleId}/editar`);
   };
 
   const handleNewOrder = () => {
-    router.push(`/ordenes/nueva?vehicleId=${vehicleId}`);
+    router.push(`/es/ordenes/nueva?vehicleId=${vehicleId}`);
   };
 
   const handleViewOwner = () => {
     if (vehicle?.owner) {
-      router.push(`/duenos/${vehicle.owner.id}`);
+      router.push(`/es/duenos/${vehicle.owner.id}`);
     }
   };
 
@@ -481,7 +481,7 @@ export function VehicleDetailContent({ vehicleId, defaultTab = 'resumen' }: Vehi
               {orders.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {orders.slice(0, 4).map((order) => (
-                    <Card key={order.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push(`/ordenes/${order.id}`)}>
+                    <Card key={order.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push(`/es/ordenes/${order.id}`)}>
                       <CardContent className="pt-6">
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
@@ -594,7 +594,7 @@ export function VehicleDetailContent({ vehicleId, defaultTab = 'resumen' }: Vehi
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => router.push(`/ordenes/${order.id}`)}
+                          onClick={() => router.push(`/es/ordenes/${order.id}`)}
                         >
                           <Eye className="mr-2 h-4 w-4" />
                           Ver Detalles

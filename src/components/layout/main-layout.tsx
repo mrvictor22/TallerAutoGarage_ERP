@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState } from 'react';
 import { useAuthStore } from '@/stores/auth';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { useFocusManagement } from '@/hooks/use-focus-management';
-import { Sidebar } from './sidebar';
+import { Sidebar, MobileSidebar } from './sidebar';
 import { Header } from './header';
 
 interface MainLayoutProps {
@@ -14,7 +14,8 @@ interface MainLayoutProps {
 export function MainLayout({ children }: MainLayoutProps) {
   const { user } = useAuthStore();
   const { containerRef } = useFocusManagement({ restoreOnUnmount: true });
-  
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   // Initialize keyboard shortcuts for global scope
   useKeyboardShortcuts('global');
 
@@ -33,11 +34,21 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <div className="flex h-screen bg-background" ref={containerRef as React.RefObject<HTMLDivElement>}>
-      <Sidebar />
+      {/* Desktop Sidebar - hidden on mobile */}
+      <div className="hidden lg:block">
+        <Sidebar />
+      </div>
+
+      {/* Mobile Sidebar */}
+      <MobileSidebar
+        open={mobileMenuOpen}
+        onOpenChange={setMobileMenuOpen}
+      />
+
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
+        <Header onMenuClick={() => setMobileMenuOpen(true)} />
         <main
-          className="flex-1 overflow-auto p-6"
+          className="flex-1 overflow-auto p-4 md:p-6"
           role="main"
           aria-label="Contenido principal"
         >

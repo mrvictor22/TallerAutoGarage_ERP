@@ -51,11 +51,17 @@ const delay = (ms: number = 500) => new Promise(resolve => setTimeout(resolve, m
 const shouldSimulateError = () => Math.random() < 0.05;
 
 // Generic API response wrapper
-const createApiResponse = <T>(data: T, success: boolean = true, message?: string): ApiResponse<T> => ({
-  success,
-  data: success ? data : undefined,
-  error: success ? undefined : message || 'Error desconocido',
+const createApiResponse = <T>(data: T, message?: string): ApiResponse<T> => ({
+  success: true,
+  data,
   message
+});
+
+// Error response helper
+const createErrorResponse = <T>(message: string): ApiResponse<T> => ({
+  success: false,
+  data: undefined,
+  error: message
 });
 
 // Pagination helper
@@ -84,7 +90,7 @@ export const ordersApi = {
     await delay();
     
     if (shouldSimulateError()) {
-      return createApiResponse(null as any, false, 'Error al cargar órdenes');
+      return createErrorResponse<PaginatedResponse<OrderWithRelations>>('Error al cargar órdenes');
     }
 
     let filteredOrders = [...mockOrders];
@@ -139,12 +145,12 @@ export const ordersApi = {
     await delay();
     
     if (shouldSimulateError()) {
-      return createApiResponse(null as any, false, 'Error al cargar orden');
+      return createErrorResponse( 'Error al cargar orden');
     }
 
     const order = mockOrders.find(o => o.id === id);
     if (!order) {
-      return createApiResponse(null as any, false, 'Orden no encontrada');
+      return createErrorResponse( 'Orden no encontrada');
     }
 
     const orderWithRelations: OrderWithRelations = {
@@ -165,7 +171,7 @@ export const ordersApi = {
     await delay(1000); // Longer delay for create operations
     
     if (shouldSimulateError()) {
-      return createApiResponse(null as any, false, 'Error al crear orden');
+      return createErrorResponse( 'Error al crear orden');
     }
 
     const newOrder: Order = {
@@ -216,7 +222,7 @@ export const ordersApi = {
     };
 
     mockOrders.push(newOrder);
-    return createApiResponse(newOrder, true, 'Orden creada exitosamente');
+    return createApiResponse(newOrder, 'Orden creada exitosamente');
   },
 
   // Update order status
@@ -224,12 +230,12 @@ export const ordersApi = {
     await delay();
     
     if (shouldSimulateError()) {
-      return createApiResponse(null as any, false, 'Error al actualizar estado');
+      return createErrorResponse( 'Error al actualizar estado');
     }
 
     const orderIndex = mockOrders.findIndex(o => o.id === id);
     if (orderIndex === -1) {
-      return createApiResponse(null as any, false, 'Orden no encontrada');
+      return createErrorResponse( 'Orden no encontrada');
     }
 
     mockOrders[orderIndex] = {
@@ -253,7 +259,7 @@ export const ordersApi = {
     };
     mockTimelineEntries.push(newTimelineEntry);
 
-    return createApiResponse(mockOrders[orderIndex], true, 'Estado actualizado exitosamente');
+    return createApiResponse(mockOrders[orderIndex], 'Estado actualizado exitosamente');
   }
 };
 
@@ -268,7 +274,7 @@ export const ownersApi = {
     await delay();
     
     if (shouldSimulateError()) {
-      return createApiResponse(null as any, false, 'Error al cargar dueños');
+      return createErrorResponse( 'Error al cargar dueños');
     }
 
     let filteredOwners = [...mockOwners];
@@ -313,12 +319,12 @@ export const ownersApi = {
     await delay();
     
     if (shouldSimulateError()) {
-      return createApiResponse(null as any, false, 'Error al cargar dueño');
+      return createErrorResponse( 'Error al cargar dueño');
     }
 
     const owner = mockOwners.find(o => o.id === id);
     if (!owner) {
-      return createApiResponse(null as any, false, 'Dueño no encontrado');
+      return createErrorResponse( 'Dueño no encontrado');
     }
 
     const ownerWithRelations: OwnerWithRelations = {
@@ -335,7 +341,7 @@ export const ownersApi = {
     await delay(1000);
     
     if (shouldSimulateError()) {
-      return createApiResponse(null as any, false, 'Error al crear dueño');
+      return createErrorResponse( 'Error al crear dueño');
     }
 
     const newOwner: Owner = {
@@ -346,7 +352,7 @@ export const ownersApi = {
     };
 
     mockOwners.push(newOwner);
-    return createApiResponse(newOwner, true, 'Dueño creado exitosamente');
+    return createApiResponse(newOwner, 'Dueño creado exitosamente');
   }
 };
 
@@ -361,7 +367,7 @@ export const vehiclesApi = {
     await delay();
     
     if (shouldSimulateError()) {
-      return createApiResponse(null as any, false, 'Error al cargar vehículos');
+      return createErrorResponse( 'Error al cargar vehículos');
     }
 
     let filteredVehicles = [...mockVehicles];
@@ -416,12 +422,12 @@ export const vehiclesApi = {
     await delay();
     
     if (shouldSimulateError()) {
-      return createApiResponse(null as any, false, 'Error al cargar vehículo');
+      return createErrorResponse( 'Error al cargar vehículo');
     }
 
     const vehicle = mockVehicles.find(v => v.id === id);
     if (!vehicle) {
-      return createApiResponse(null as any, false, 'Vehículo no encontrado');
+      return createErrorResponse( 'Vehículo no encontrado');
     }
 
     const vehicleWithRelations: VehicleWithRelations = {
@@ -438,7 +444,7 @@ export const vehiclesApi = {
     await delay(1000);
     
     if (shouldSimulateError()) {
-      return createApiResponse(null as any, false, 'Error al crear vehículo');
+      return createErrorResponse( 'Error al crear vehículo');
     }
 
     const newVehicle: Vehicle = {
@@ -458,7 +464,7 @@ export const vehiclesApi = {
     };
 
     mockVehicles.push(newVehicle);
-    return createApiResponse(newVehicle, true, 'Vehículo creado exitosamente');
+    return createApiResponse(newVehicle, 'Vehículo creado exitosamente');
   }
 };
 
@@ -472,7 +478,7 @@ export const timelineApi = {
     await delay();
     
     if (shouldSimulateError()) {
-      return createApiResponse(null as any, false, 'Error al agregar entrada');
+      return createErrorResponse( 'Error al agregar entrada');
     }
 
     const newEntry: TimelineEntry = {
@@ -485,7 +491,7 @@ export const timelineApi = {
     };
 
     mockTimelineEntries.push(newEntry);
-    return createApiResponse(newEntry, true, 'Entrada agregada exitosamente');
+    return createApiResponse(newEntry, 'Entrada agregada exitosamente');
   }
 };
 
@@ -496,7 +502,7 @@ export const whatsappApi = {
     await delay();
     
     if (shouldSimulateError()) {
-      return createApiResponse(null as any, false, 'Error al cargar plantillas');
+      return createErrorResponse( 'Error al cargar plantillas');
     }
 
     return createApiResponse(mockWhatsAppTemplates.filter(t => t.active));
@@ -512,12 +518,12 @@ export const whatsappApi = {
     await delay(2000); // Longer delay to simulate sending
     
     if (shouldSimulateError()) {
-      return createApiResponse(null as any, false, 'Error al enviar mensaje');
+      return createErrorResponse( 'Error al enviar mensaje');
     }
 
     const template = mockWhatsAppTemplates.find(t => t.id === templateId);
     if (!template) {
-      return createApiResponse(null as any, false, 'Plantilla no encontrada');
+      return createErrorResponse( 'Plantilla no encontrada');
     }
 
     // Replace variables in template content
@@ -547,7 +553,7 @@ export const whatsappApi = {
     }, 3000);
 
     mockWhatsAppMessages.push(newMessage);
-    return createApiResponse(newMessage, true, 'Mensaje enviado exitosamente');
+    return createApiResponse(newMessage, 'Mensaje enviado exitosamente');
   }
 };
 
@@ -558,7 +564,7 @@ export const dashboardApi = {
     await delay();
     
     if (shouldSimulateError()) {
-      return createApiResponse(null as any, false, 'Error al cargar KPIs');
+      return createErrorResponse( 'Error al cargar KPIs');
     }
 
     return createApiResponse(mockDashboardKPIs);
@@ -569,7 +575,7 @@ export const dashboardApi = {
     await delay();
     
     if (shouldSimulateError()) {
-      return createApiResponse(null as any, false, 'Error al cargar actividades');
+      return createErrorResponse( 'Error al cargar actividades');
     }
 
     const activities = mockRecentActivities
@@ -593,7 +599,7 @@ export const usersApi = {
     await delay();
     
     if (shouldSimulateError()) {
-      return createApiResponse(null as any, false, 'Error al cargar usuarios');
+      return createErrorResponse( 'Error al cargar usuarios');
     }
 
     return createApiResponse(mockUsers.filter(u => u.active));

@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { ordersApi, timelineApi } from '@/services/supabase-api';
-import { OrderWithRelations, TimelineEntry as DBTimelineEntry, TimelineEntryInsert } from '@/types/database';
+import { OrderWithRelations, TimelineEntry as DBTimelineEntry, TimelineEntryInsert, Json } from '@/types/database';
+import { TimelineEntryType, TimelineEntry } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +15,8 @@ import { Separator } from '@/components/ui/separator';
 import { Timeline } from '@/components/timeline/timeline';
 import { FileUploader } from '@/components/uploader/file-uploader';
 import { WhatsAppSender } from '@/components/whatsapp/whatsapp-sender';
+import { OrderBudget } from '@/components/orders/order-budget';
+import { OrderPayments } from '@/components/orders/order-payments';
 import { formatCurrency, formatDate, formatDateTime, getOrderStatusColor, timeAgo } from '@/lib/utils';
 import {
   ArrowLeft,
@@ -59,19 +62,22 @@ interface OrderDetailContentProps {
 }
 
 // Map database timeline entry to component timeline entry format
-function mapTimelineEntry(entry: DBTimelineEntry & { author?: { full_name: string } }): any {
+function mapTimelineEntry(entry: DBTimelineEntry & { author?: { full_name: string } }): TimelineEntry {
+  // Parse checklist from JSON if present
+  const checklist = entry.checklist as Array<{ id: string; text: string; completed: boolean }> | null;
+
   return {
     id: entry.id,
     orderId: entry.order_id,
-    type: entry.type,
+    type: entry.type as TimelineEntryType,
     title: entry.title,
     description: entry.description || '',
-    timeSpentMinutes: entry.time_spent_minutes,
-    authorId: entry.author_id,
+    timeSpentMinutes: entry.time_spent_minutes ?? undefined,
+    authorId: entry.author_id || '',
     authorName: entry.author?.full_name || 'Usuario',
     attachments: entry.attachments || [],
     tags: entry.tags || [],
-    checklist: entry.checklist as any,
+    checklist: checklist ?? undefined,
     createdAt: new Date(entry.created_at)
   };
 }
@@ -81,12 +87,12 @@ function OrderSummary({ order }: { order: OrderWithRelations }) {
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ status, notes }: { status: string; notes?: string }) =>
-      ordersApi.updateOrderStatus(order.id, status as any, notes),
+      ordersApi.updateOrderStatus(order.id, status as 'new' | 'diagnosis' | 'waiting_approval' | 'approved' | 'in_progress' | 'waiting_parts' | 'quality_check' | 'ready' | 'delivered' | 'cancelled', notes),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders', order.id] });
       toast.success('Estado actualizado exitosamente');
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error?.message || 'Error al actualizar estado');
     }
   });
@@ -420,7 +426,15 @@ export function OrderDetailContent({ orderId, defaultTab = 'summary' }: OrderDet
 
   // Add timeline entry mutation
   const addTimelineEntryMutation = useMutation({
-    mutationFn: (entry: Omit<any, 'id' | 'orderId' | 'authorId' | 'authorName' | 'createdAt'>) => {
+    mutationFn: (entry: {
+      type: TimelineEntryType;
+      title: string;
+      description?: string;
+      timeSpentMinutes?: number;
+      attachments?: string[];
+      tags?: string[];
+      checklist?: Json;
+    }) => {
       const timelineEntry: TimelineEntryInsert = {
         order_id: orderId,
         type: entry.type,
@@ -430,7 +444,7 @@ export function OrderDetailContent({ orderId, defaultTab = 'summary' }: OrderDet
         attachments: entry.attachments || [],
         tags: entry.tags || [],
         metadata: {},
-        checklist: entry.checklist || null,
+        checklist: entry.checklist ?? undefined,
         author_id: '' // Will be set by the API
       };
       return timelineApi.addEntry(timelineEntry);
@@ -439,7 +453,7 @@ export function OrderDetailContent({ orderId, defaultTab = 'summary' }: OrderDet
       queryClient.invalidateQueries({ queryKey: ['orders', orderId] });
       toast.success('Entrada agregada exitosamente');
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error?.message || 'Error al agregar entrada');
     }
   });
@@ -533,6 +547,14 @@ export function OrderDetailContent({ orderId, defaultTab = 'summary' }: OrderDet
             <Clock className="h-4 w-4 mr-2" />
             Bitácora
           </TabsTrigger>
+          <TabsTrigger value="budget">
+            <Wrench className="h-4 w-4 mr-2" />
+            Presupuesto
+          </TabsTrigger>
+          <TabsTrigger value="payments">
+            <DollarSign className="h-4 w-4 mr-2" />
+            Pagos
+          </TabsTrigger>
           <TabsTrigger value="parts">
             <Package className="h-4 w-4 mr-2" />
             Repuestos
@@ -560,6 +582,14 @@ export function OrderDetailContent({ orderId, defaultTab = 'summary' }: OrderDet
               />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="budget" className="mt-6">
+          <OrderBudget orderId={orderId} />
+        </TabsContent>
+
+        <TabsContent value="payments" className="mt-6">
+          <OrderPayments orderId={orderId} totalAmount={order.total} />
         </TabsContent>
 
         <TabsContent value="parts" className="mt-6">
@@ -623,7 +653,7 @@ export function OrderDetailContent({ orderId, defaultTab = 'summary' }: OrderDet
 
         <TabsContent value="whatsapp" className="mt-6">
           <WhatsAppSender
-            order={order as any}
+            order={order}
             onMessageSent={() => {
               queryClient.invalidateQueries({ queryKey: ['orders', orderId] });
             }}

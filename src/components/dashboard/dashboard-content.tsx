@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { dashboardApi } from '@/services/supabase-api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,7 +18,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import type { TimelineEntry } from '@/types/database';
+import type { TimelineEntry, WhatsAppMessage, Owner, Order } from '@/types/database';
 
 function KPICard({ 
   title, 
@@ -125,16 +126,25 @@ export function DashboardContent() {
 
   const { data: kpisResponse, isLoading: kpisLoading } = useQuery({
     queryKey: ['dashboard', 'kpis'],
-    queryFn: () => dashboardApi.getKPIs()
+    queryFn: () => dashboardApi.getKPIs(),
+    refetchInterval: 30000 // Refresh every 30 seconds
   });
 
   const { data: activitiesResponse, isLoading: activitiesLoading } = useQuery({
     queryKey: ['dashboard', 'activities'],
-    queryFn: () => dashboardApi.getRecentActivity(10)
+    queryFn: () => dashboardApi.getRecentActivity(10),
+    refetchInterval: 30000
+  });
+
+  const { data: messagesResponse, isLoading: messagesLoading } = useQuery({
+    queryKey: ['dashboard', 'messages'],
+    queryFn: () => dashboardApi.getRecentMessages(5),
+    refetchInterval: 30000
   });
 
   const kpis = kpisResponse?.data;
   const activities = activitiesResponse?.data;
+  const messages = messagesResponse?.data;
 
   if (kpisLoading) {
     return (
@@ -253,31 +263,86 @@ export function DashboardContent() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-lg bg-accent/50">
-                <div>
-                  <p className="text-sm font-medium">Juan Pérez</p>
-                  <p className="text-xs text-muted-foreground">Orden recibida - P123-456</p>
+            {messagesLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-accent/50">
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-48" />
+                    </div>
+                    <Skeleton className="h-6 w-20" />
+                  </div>
+                ))}
+              </div>
+            ) : messages?.length ? (
+              <div className="space-y-3">
+                {messages.map((message: WhatsAppMessage & { owner?: Pick<Owner, 'name'>; order?: Pick<Order, 'folio'> }) => {
+                  const getStatusBadge = (status: string) => {
+                    switch (status) {
+                      case 'delivered':
+                        return (
+                          <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                            Entregado
+                          </Badge>
+                        );
+                      case 'sent':
+                        return (
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                            Enviado
+                          </Badge>
+                        );
+                      case 'read':
+                        return (
+                          <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
+                            Leído
+                          </Badge>
+                        );
+                      case 'failed':
+                        return (
+                          <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
+                            Error
+                          </Badge>
+                        );
+                      default:
+                        return (
+                          <Badge variant="secondary" className="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300">
+                            Pendiente
+                          </Badge>
+                        );
+                    }
+                  };
+
+                  return (
+                    <div key={message.id} className="flex items-center justify-between p-3 rounded-lg bg-accent/50">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {message.owner?.name || 'Cliente desconocido'}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {message.content.substring(0, 50)}
+                          {message.content.length > 50 ? '...' : ''}
+                          {message.order?.folio && ` - ${message.order.folio}`}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {formatDate(message.created_at)}
+                        </p>
+                      </div>
+                      {getStatusBadge(message.status)}
+                    </div>
+                  );
+                })}
+                <div className="text-center py-2">
+                  <Link href="/es/notificaciones/whatsapp" className="text-xs text-muted-foreground hover:text-primary">
+                    Ver todos los mensajes →
+                  </Link>
                 </div>
-                <Badge variant="secondary" className="bg-green-100 text-green-800">
-                  Entregado
-                </Badge>
               </div>
-              <div className="flex items-center justify-between p-3 rounded-lg bg-accent/50">
-                <div>
-                  <p className="text-sm font-medium">Transportes El Salvador</p>
-                  <p className="text-xs text-muted-foreground">Presupuesto listo - M789-012</p>
-                </div>
-                <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                  Enviado
-                </Badge>
-              </div>
-              <div className="text-center py-2">
-                <p className="text-xs text-muted-foreground">
-                  Ver todos los mensajes →
-                </p>
-              </div>
-            </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No hay mensajes recientes
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

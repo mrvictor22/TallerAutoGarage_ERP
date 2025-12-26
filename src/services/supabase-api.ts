@@ -202,7 +202,7 @@ export const ownersApi = {
       return createErrorResponse(error.message)
     }
 
-    return createSuccessResponse(null as any, 'Cliente eliminado exitosamente')
+    return createSuccessResponse(null, 'Cliente eliminado exitosamente')
   }
 }
 
@@ -321,7 +321,7 @@ export const vehiclesApi = {
       return createErrorResponse(error.message)
     }
 
-    return createSuccessResponse(null as any, 'Vehículo eliminado exitosamente')
+    return createSuccessResponse(null, 'Vehículo eliminado exitosamente')
   },
 
   getVehiclesByOwner: async (ownerId: string): Promise<ApiResponse<Vehicle[]>> => {
@@ -359,7 +359,7 @@ export const ordersApi = {
         *,
         owner:owners(*),
         vehicle:vehicles(*),
-        technician:profiles(*),
+        technician:profiles!technician_id(*),
         budget_lines(*),
         timeline_entries(*),
         payments(*),
@@ -422,9 +422,9 @@ export const ordersApi = {
         *,
         owner:owners(*),
         vehicle:vehicles(*),
-        technician:profiles(*),
+        technician:profiles!technician_id(*),
         budget_lines(*),
-        timeline_entries(*, author:profiles(*)),
+        timeline_entries(*, author:profiles!author_id(*)),
         payments(*),
         parts_invoices(*),
         messages:whatsapp_messages(*)
@@ -433,7 +433,12 @@ export const ordersApi = {
       .single()
 
     if (error) {
+      console.error('Error fetching order:', error)
       return createErrorResponse(error.message)
+    }
+
+    if (!data) {
+      return createErrorResponse('Orden no encontrada')
     }
 
     return createSuccessResponse(data as OrderWithRelations)
@@ -443,9 +448,50 @@ export const ordersApi = {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
+    // Generate folio if not provided
+    let folio = order.folio
+    if (!folio) {
+      const { data: config } = await supabase
+        .from('workshop_config')
+        .select('id, order_prefix, order_counter')
+        .single()
+
+      const prefix = config?.order_prefix || 'ORD'
+
+      // Get the highest folio number from existing orders
+      const { data: lastOrder } = await supabase
+        .from('orders')
+        .select('folio')
+        .like('folio', `${prefix}-%`)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      let nextCounter = 1
+      if (lastOrder?.folio) {
+        // Extract number from folio (e.g., "ORD-0001" -> 1)
+        const match = lastOrder.folio.match(/-(\d+)$/)
+        if (match) {
+          nextCounter = parseInt(match[1], 10) + 1
+        }
+      } else if (config?.order_counter) {
+        nextCounter = config.order_counter + 1
+      }
+
+      folio = `${prefix}-${nextCounter.toString().padStart(4, '0')}`
+
+      // Update counter in config
+      if (config) {
+        await supabase
+          .from('workshop_config')
+          .update({ order_counter: nextCounter })
+          .eq('id', config.id)
+      }
+    }
+
     const { data, error } = await supabase
       .from('orders')
-      .insert({ ...order, created_by: user?.id })
+      .insert({ ...order, folio, created_by: user?.id })
       .select()
       .single()
 
@@ -461,7 +507,7 @@ export const ordersApi = {
         title: 'Orden creada',
         description: 'Se ha creado una nueva orden de servicio',
         new_status: 'new',
-        author_id: user?.id!
+        author_id: user?.id ?? ''
       })
     }
 
@@ -524,7 +570,7 @@ export const ordersApi = {
       description: notes || `Estado actualizado de ${currentOrder?.status} a ${newStatus}`,
       old_status: currentOrder?.status,
       new_status: newStatus,
-      author_id: user?.id!
+      author_id: user?.id ?? ''
     })
 
     return createSuccessResponse(data, 'Estado actualizado exitosamente')
@@ -542,7 +588,7 @@ export const ordersApi = {
       return createErrorResponse(error.message)
     }
 
-    return createSuccessResponse(null as any, 'Orden eliminada exitosamente')
+    return createSuccessResponse(null, 'Orden eliminada exitosamente')
   },
 
   getOrdersByVehicle: async (vehicleId: string): Promise<ApiResponse<Order[]>> => {
@@ -647,7 +693,7 @@ export const budgetLinesApi = {
       return createErrorResponse(error.message)
     }
 
-    return createSuccessResponse(null as any, 'Línea eliminada')
+    return createSuccessResponse(null, 'Línea eliminada')
   },
 
   approveBudgetLine: async (id: string, approved: boolean): Promise<ApiResponse<BudgetLine>> => {
@@ -678,7 +724,7 @@ export const timelineApi = {
 
     const { data, error } = await supabase
       .from('timeline_entries')
-      .select('*, author:profiles(*)')
+      .select('*, author:profiles!author_id(*)')
       .eq('order_id', orderId)
       .order('created_at', { ascending: false })
 
@@ -695,8 +741,8 @@ export const timelineApi = {
 
     const { data, error } = await supabase
       .from('timeline_entries')
-      .insert({ ...entry, author_id: user?.id! })
-      .select('*, author:profiles(*)')
+      .insert({ ...entry, author_id: user?.id ?? '' })
+      .select('*, author:profiles!author_id(*)')
       .single()
 
     if (error) {
@@ -748,7 +794,7 @@ export const paymentsApi = {
       type: 'payment',
       title: 'Pago recibido',
       description: `Se recibió un pago de $${payment.amount} por ${payment.payment_method}`,
-      author_id: user?.id!
+      author_id: user?.id ?? ''
     })
 
     return createSuccessResponse(data, 'Pago registrado exitosamente')
@@ -852,7 +898,7 @@ export const whatsappApi = {
         type: 'message_sent',
         title: 'Mensaje WhatsApp enviado',
         description: `Se envió un mensaje usando la plantilla "${template.name}"`,
-        author_id: user?.id!
+        author_id: user?.id ?? ''
       })
     }
 
@@ -880,37 +926,75 @@ export const dashboardApi = {
   getKPIs: async (): Promise<ApiResponse<DashboardKPIs>> => {
     const supabase = createClient()
 
-    // Get order counts by status
-    const { data: orders } = await supabase
-      .from('orders')
-      .select('status, total, amount_paid, delivery_date')
+    try {
+      // Get all orders with payment info
+      const { data: orders, error: ordersError } = await supabase
+        .from('orders')
+        .select('status, total, amount_paid, delivery_date, payment_status')
 
-    // Get customer count
-    const { count: customersCount } = await supabase
-      .from('owners')
-      .select('*', { count: 'exact', head: true })
+      if (ordersError) {
+        console.error('Error fetching orders:', ordersError)
+      }
 
-    // Get vehicle count
-    const { count: vehiclesCount } = await supabase
-      .from('vehicles')
-      .select('*', { count: 'exact', head: true })
+      // Get customer count
+      const { count: customersCount, error: customersError } = await supabase
+        .from('owners')
+        .select('*', { count: 'exact', head: true })
 
-    const today = new Date().toISOString().split('T')[0]
-    const thisMonth = new Date().toISOString().slice(0, 7)
+      if (customersError) {
+        console.error('Error counting customers:', customersError)
+      }
 
-    const kpis: DashboardKPIs = {
-      totalOrders: orders?.length || 0,
-      openOrders: orders?.filter(o => ['new', 'diagnosis', 'waiting_approval'].includes(o.status)).length || 0,
-      inProgressOrders: orders?.filter(o => ['approved', 'in_progress', 'waiting_parts', 'quality_check'].includes(o.status)).length || 0,
-      completedToday: orders?.filter(o => o.delivery_date?.startsWith(today)).length || 0,
-      pendingPayment: orders?.filter(o => o.total > o.amount_paid).length || 0,
-      totalRevenue: orders?.reduce((sum, o) => sum + (o.amount_paid || 0), 0) || 0,
-      revenueThisMonth: orders?.filter(o => o.delivery_date?.startsWith(thisMonth)).reduce((sum, o) => sum + (o.amount_paid || 0), 0) || 0,
-      totalCustomers: customersCount || 0,
-      totalVehicles: vehiclesCount || 0
+      // Get vehicle count
+      const { count: vehiclesCount, error: vehiclesError } = await supabase
+        .from('vehicles')
+        .select('*', { count: 'exact', head: true })
+
+      if (vehiclesError) {
+        console.error('Error counting vehicles:', vehiclesError)
+      }
+
+      const today = new Date().toISOString().split('T')[0]
+      const thisMonthStart = new Date()
+      thisMonthStart.setDate(1)
+      thisMonthStart.setHours(0, 0, 0, 0)
+
+      // Calculate KPIs
+      const kpis: DashboardKPIs = {
+        totalOrders: orders?.length || 0,
+        // Órdenes Abiertas (new, diagnosis, waiting_approval)
+        openOrders: orders?.filter(o =>
+          ['new', 'diagnosis', 'waiting_approval'].includes(o.status)
+        ).length || 0,
+        // En Proceso (approved, in_progress, waiting_parts, quality_check)
+        inProgressOrders: orders?.filter(o =>
+          ['approved', 'in_progress', 'waiting_parts', 'quality_check'].includes(o.status)
+        ).length || 0,
+        // Completadas hoy (delivered con fecha de hoy)
+        completedToday: orders?.filter(o =>
+          o.status === 'delivered' && o.delivery_date?.startsWith(today)
+        ).length || 0,
+        // Pendientes de pago (payment_status != 'paid')
+        pendingPayment: orders?.filter(o =>
+          o.payment_status && o.payment_status !== 'paid'
+        ).length || 0,
+        // Ingresos totales (suma de amount_paid de todas las órdenes)
+        totalRevenue: orders?.reduce((sum, o) => sum + (o.amount_paid || 0), 0) || 0,
+        // Ingresos del mes (suma de amount_paid de órdenes entregadas este mes)
+        revenueThisMonth: orders?.filter(o => {
+          if (!o.delivery_date) return false
+          const deliveryDate = new Date(o.delivery_date)
+          return deliveryDate >= thisMonthStart
+        }).reduce((sum, o) => sum + (o.amount_paid || 0), 0) || 0,
+        totalCustomers: customersCount || 0,
+        totalVehicles: vehiclesCount || 0
+      }
+
+      return createSuccessResponse(kpis)
+    } catch (error) {
+      console.error('Error getting dashboard KPIs:', error)
+      return createErrorResponse('Error al obtener estadísticas del dashboard')
     }
-
-    return createSuccessResponse(kpis)
   },
 
   getRecentActivity: async (limit: number = 10): Promise<ApiResponse<TimelineEntry[]>> => {
@@ -918,7 +1002,7 @@ export const dashboardApi = {
 
     const { data, error } = await supabase
       .from('timeline_entries')
-      .select('*, author:profiles(*), order:orders(folio)')
+      .select('*, author:profiles!author_id(*), order:orders(folio)')
       .order('created_at', { ascending: false })
       .limit(limit)
 
@@ -927,6 +1011,22 @@ export const dashboardApi = {
     }
 
     return createSuccessResponse(data as TimelineEntry[])
+  },
+
+  getRecentMessages: async (limit: number = 5): Promise<ApiResponse<WhatsAppMessage[]>> => {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('whatsapp_messages')
+      .select('*, owner:owners(name), order:orders(folio)')
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (error) {
+      return createErrorResponse(error.message)
+    }
+
+    return createSuccessResponse(data as WhatsAppMessage[])
   }
 }
 
@@ -935,14 +1035,19 @@ export const dashboardApi = {
 // ============================================
 
 export const usersApi = {
-  getUsers: async (): Promise<ApiResponse<Profile[]>> => {
+  getUsers: async (includeInactive: boolean = false): Promise<ApiResponse<Profile[]>> => {
     const supabase = createClient()
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('profiles')
       .select('*')
-      .eq('is_active', true)
       .order('full_name')
+
+    if (!includeInactive) {
+      query = query.eq('is_active', true)
+    }
+
+    const { data, error } = await query
 
     if (error) {
       return createErrorResponse(error.message)
@@ -989,6 +1094,56 @@ export const usersApi = {
     return createSuccessResponse(data)
   },
 
+  createUser: async (userData: {
+    email: string
+    password: string
+    full_name: string
+    role: Database['public']['Enums']['user_role']
+    phone?: string | null
+  }): Promise<ApiResponse<Profile>> => {
+    const supabase = createClient()
+
+    // Create auth user
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: userData.email,
+      password: userData.password,
+      options: {
+        data: {
+          full_name: userData.full_name,
+          role: userData.role
+        }
+      }
+    })
+
+    if (authError) {
+      return createErrorResponse(authError.message)
+    }
+
+    if (!authData.user) {
+      return createErrorResponse('Error al crear usuario')
+    }
+
+    // Create or update profile with additional data
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .upsert({
+        id: authData.user.id,
+        email: userData.email,
+        full_name: userData.full_name,
+        role: userData.role,
+        phone: userData.phone,
+        is_active: true
+      })
+      .select()
+      .single()
+
+    if (profileError) {
+      return createErrorResponse(profileError.message)
+    }
+
+    return createSuccessResponse(profile, 'Usuario creado exitosamente')
+  },
+
   updateProfile: async (id: string, profile: Partial<Profile>): Promise<ApiResponse<Profile>> => {
     const supabase = createClient()
 
@@ -1004,6 +1159,23 @@ export const usersApi = {
     }
 
     return createSuccessResponse(data, 'Perfil actualizado')
+  },
+
+  toggleUserStatus: async (id: string, isActive: boolean): Promise<ApiResponse<Profile>> => {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ is_active: isActive })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      return createErrorResponse(error.message)
+    }
+
+    return createSuccessResponse(data, isActive ? 'Usuario activado' : 'Usuario desactivado')
   }
 }
 
@@ -1018,10 +1190,34 @@ export const configApi = {
     const { data, error } = await supabase
       .from('workshop_config')
       .select('*')
-      .single()
+      .maybeSingle()
 
     if (error) {
       return createErrorResponse(error.message)
+    }
+
+    // If no config exists, create a default one
+    if (!data) {
+      const defaultConfig = {
+        name: 'Mi Taller',
+        order_prefix: 'ORD',
+        order_counter: 0,
+        currency: 'MXN',
+        tax_regime: 'general',
+        whatsapp_enabled: false
+      }
+
+      const { data: newConfig, error: insertError } = await supabase
+        .from('workshop_config')
+        .insert(defaultConfig)
+        .select()
+        .single()
+
+      if (insertError) {
+        return createErrorResponse(insertError.message)
+      }
+
+      return createSuccessResponse(newConfig)
     }
 
     return createSuccessResponse(data)
@@ -1051,5 +1247,89 @@ export const configApi = {
     }
 
     return createSuccessResponse(data, 'Configuración actualizada')
+  }
+}
+
+// ============================================
+// EXPENSE CATEGORIES API
+// ============================================
+
+export const expenseCategoriesApi = {
+  getCategories: async (): Promise<ApiResponse<Database['public']['Tables']['expense_categories']['Row'][]>> => {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('expense_categories')
+      .select('*')
+      .order('name')
+
+    if (error) {
+      return createErrorResponse(error.message)
+    }
+
+    return createSuccessResponse(data)
+  },
+
+  createCategory: async (
+    category: Database['public']['Tables']['expense_categories']['Insert']
+  ): Promise<ApiResponse<Database['public']['Tables']['expense_categories']['Row']>> => {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('expense_categories')
+      .insert(category)
+      .select()
+      .single()
+
+    if (error) {
+      return createErrorResponse(error.message)
+    }
+
+    return createSuccessResponse(data, 'Categoría creada exitosamente')
+  },
+
+  updateCategory: async (
+    id: string,
+    category: Database['public']['Tables']['expense_categories']['Update']
+  ): Promise<ApiResponse<Database['public']['Tables']['expense_categories']['Row']>> => {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('expense_categories')
+      .update(category)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      return createErrorResponse(error.message)
+    }
+
+    return createSuccessResponse(data, 'Categoría actualizada exitosamente')
+  },
+
+  deleteCategory: async (id: string): Promise<ApiResponse<null>> => {
+    const supabase = createClient()
+
+    // Check if category is used in any expenses
+    const { count } = await supabase
+      .from('expenses')
+      .select('*', { count: 'exact', head: true })
+      .eq('category_id', id)
+
+    if (count && count > 0) {
+      return createErrorResponse('No se puede eliminar la categoría porque tiene gastos asociados')
+    }
+
+    const { error } = await supabase
+      .from('expense_categories')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      return createErrorResponse(error.message)
+    }
+
+    return createSuccessResponse(null, 'Categoría eliminada exitosamente')
   }
 }

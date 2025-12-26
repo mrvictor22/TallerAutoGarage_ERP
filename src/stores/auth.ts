@@ -29,6 +29,19 @@ const rolePermissions: Record<UserRole, string[]> = {
     'dashboard:read',
     'payments:*'
   ],
+  mechanic_lead: [
+    'orders:read',
+    'orders:update',
+    'orders:assign',
+    'budget:read',
+    'budget:approve',
+    'timeline:*',
+    'parts:*',
+    'technicians:read',
+    'technicians:assign',
+    'reports:read',
+    'dashboard:read'
+  ],
   technician: [
     'orders:read',
     'orders:update',

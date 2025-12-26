@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
 import { vehiclesApi, VehicleFilters } from '@/services/supabase-api';
@@ -23,8 +23,19 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Plus,
   Filter,
@@ -38,14 +49,17 @@ import {
   Calendar,
   Gauge,
   X,
-  Search
+  Search,
+  Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function VehiclesListContent() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [filters, setFilters] = useState<VehicleFilters>({});
   const [showFilters, setShowFilters] = useState(false);
+  const [vehicleToDelete, setVehicleToDelete] = useState<VehicleWithRelations | null>(null);
 
   // Fetch vehicles
   const { data: vehiclesResponse, isLoading, error } = useQuery({
@@ -190,6 +204,14 @@ export function VehiclesListContent() {
                 <Wrench className="mr-2 h-4 w-4" />
                 Nueva Orden
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => handleDeleteClick(vehicle)}
+                className="text-red-600 focus:text-red-600"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Eliminar
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         );
@@ -198,19 +220,47 @@ export function VehiclesListContent() {
   ];
 
   const handleViewVehicle = (vehicle: VehicleWithRelations) => {
-    router.push(`/vehiculos/${vehicle.id}`);
+    router.push(`/es/vehiculos/${vehicle.id}`);
   };
 
   const handleEditVehicle = (vehicle: VehicleWithRelations) => {
-    router.push(`/vehiculos/${vehicle.id}/editar`);
+    router.push(`/es/vehiculos/${vehicle.id}/editar`);
   };
 
   const handleNewOrder = (vehicle: VehicleWithRelations) => {
-    router.push(`/ordenes/nueva?vehicleId=${vehicle.id}`);
+    router.push(`/es/ordenes/nueva?vehicleId=${vehicle.id}`);
   };
 
   const handleNewVehicle = () => {
-    router.push('/vehiculos/nuevo');
+    router.push('/es/vehiculos/nuevo');
+  };
+
+  const handleDeleteClick = (vehicle: VehicleWithRelations) => {
+    setVehicleToDelete(vehicle);
+  };
+
+  const deleteVehicleMutation = useMutation({
+    mutationFn: async (vehicleId: string) => {
+      const response = await vehiclesApi.deleteVehicle(vehicleId);
+      if (!response.success) {
+        throw new Error(response.error || 'Error al eliminar vehículo');
+      }
+      return response;
+    },
+    onSuccess: () => {
+      toast.success('Vehículo eliminado exitosamente');
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      setVehicleToDelete(null);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Error al eliminar vehículo');
+    }
+  });
+
+  const handleConfirmDelete = async () => {
+    if (vehicleToDelete) {
+      await deleteVehicleMutation.mutateAsync(vehicleToDelete.id);
+    }
   };
 
   const handleExport = (data: VehicleWithRelations[]) => {
@@ -246,7 +296,7 @@ export function VehiclesListContent() {
     toast.success('Archivo exportado exitosamente');
   };
 
-  const updateFilter = (key: keyof VehicleFilters, value: any) => {
+  const updateFilter = (key: keyof VehicleFilters, value: unknown) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
@@ -322,14 +372,14 @@ export function VehiclesListContent() {
               <div>
                 <Label htmlFor="brand">Marca</Label>
                 <Select
-                  value={filters.brand || ''}
-                  onValueChange={(value) => updateFilter('brand', value || undefined)}
+                  value={filters.brand || '__all__'}
+                  onValueChange={(value) => updateFilter('brand', value === '__all__' ? undefined : value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Todas las marcas" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas las marcas</SelectItem>
+                    <SelectItem value="__all__">Todas las marcas</SelectItem>
                     {allBrands.map((brand) => (
                       <SelectItem key={brand} value={brand}>
                         {brand}
@@ -341,14 +391,14 @@ export function VehiclesListContent() {
               <div>
                 <Label htmlFor="year">Año</Label>
                 <Select
-                  value={filters.year?.toString() || ''}
-                  onValueChange={(value) => updateFilter('year', value ? parseInt(value) : undefined)}
+                  value={filters.year?.toString() || '__all__'}
+                  onValueChange={(value) => updateFilter('year', value === '__all__' ? undefined : parseInt(value))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Todos los años" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos los años</SelectItem>
+                    <SelectItem value="__all__">Todos los años</SelectItem>
                     {allYears.map((year) => (
                       <SelectItem key={year} value={year.toString()}>
                         {year}
@@ -454,6 +504,40 @@ export function VehiclesListContent() {
           )}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!vehicleToDelete} onOpenChange={() => setVehicleToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar vehículo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas eliminar el vehículo{' '}
+              <span className="font-semibold">
+                {vehicleToDelete?.brand} {vehicleToDelete?.model} ({vehicleToDelete?.plate})
+              </span>
+              ? Esta acción no se puede deshacer.
+              {vehicleToDelete?.orders && vehicleToDelete.orders.length > 0 && (
+                <span className="block mt-2 text-red-600 font-medium">
+                  Advertencia: Este vehículo tiene {vehicleToDelete.orders.length}{' '}
+                  {vehicleToDelete.orders.length === 1 ? 'orden asociada' : 'órdenes asociadas'}.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteVehicleMutation.isPending}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={deleteVehicleMutation.isPending}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteVehicleMutation.isPending ? 'Eliminando...' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

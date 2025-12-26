@@ -5,12 +5,12 @@ interface UIState {
   theme: 'light' | 'dark';
   sidebarCollapsed: boolean;
   tableColumns: Record<string, string[]>;
-  recentFilters: Record<string, any>;
+  recentFilters: Record<string, unknown>;
   toggleTheme: () => void;
   toggleSidebar: () => void;
   setTableColumns: (table: string, columns: string[]) => void;
-  setRecentFilter: (key: string, filter: any) => void;
-  getRecentFilter: (key: string) => any;
+  setRecentFilter: (key: string, filter: unknown) => void;
+  getRecentFilter: (key: string) => unknown;
 }
 
 export const useUIStore = create<UIState>()(
@@ -42,7 +42,7 @@ export const useUIStore = create<UIState>()(
         }));
       },
 
-      setRecentFilter: (key: string, filter: any) => {
+      setRecentFilter: (key: string, filter: unknown) => {
         set((state) => ({
           recentFilters: {
             ...state.recentFilters,
