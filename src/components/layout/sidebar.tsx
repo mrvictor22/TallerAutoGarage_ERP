@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/ui';
 import { useAuthStore } from '@/stores/auth';
+import { useWorkshopConfig } from '@/contexts/workshop-config';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -199,6 +200,8 @@ function SidebarItem({ item, isCollapsed, level = 0, onNavigate }: SidebarItemPr
 // Desktop Sidebar
 export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
+  const { config } = useWorkshopConfig();
+  const workshopName = config?.name || 'Taller Pro';
 
   return (
     <div
@@ -214,7 +217,7 @@ export function Sidebar() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Car className="h-4 w-4" />
             </div>
-            <span className="font-semibold">Taller Pro</span>
+            <span className="font-semibold truncate">{workshopName}</span>
           </div>
         )}
         <Button
@@ -269,7 +272,7 @@ export function Sidebar() {
         <Separator className="mb-4" />
         {!sidebarCollapsed && (
           <div className="text-xs text-muted-foreground">
-            Taller Pro v1.0.0
+            {workshopName} v1.0.0
           </div>
         )}
       </div>
@@ -284,6 +287,9 @@ interface MobileSidebarProps {
 }
 
 export function MobileSidebar({ open, onOpenChange }: MobileSidebarProps) {
+  const { config } = useWorkshopConfig();
+  const workshopName = config?.name || 'Taller Pro';
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="left" className="w-72 p-0">
@@ -292,7 +298,7 @@ export function MobileSidebar({ open, onOpenChange }: MobileSidebarProps) {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Car className="h-4 w-4" />
             </div>
-            <span>Taller Pro</span>
+            <span className="truncate">{workshopName}</span>
           </SheetTitle>
         </SheetHeader>
 
@@ -311,7 +317,7 @@ export function MobileSidebar({ open, onOpenChange }: MobileSidebarProps) {
         {/* Footer */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-background">
           <div className="text-xs text-muted-foreground text-center">
-            Taller Pro v1.0.0
+            {workshopName} v1.0.0
           </div>
         </div>
       </SheetContent>

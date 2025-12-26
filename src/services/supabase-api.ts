@@ -1226,27 +1226,50 @@ export const configApi = {
   updateWorkshopConfig: async (config: Partial<WorkshopConfig>): Promise<ApiResponse<WorkshopConfig>> => {
     const supabase = createClient()
 
+    // Check if config exists
     const { data: existing } = await supabase
       .from('workshop_config')
       .select('id')
-      .single()
+      .maybeSingle()
 
-    if (!existing) {
-      return createErrorResponse('Configuración no encontrada')
+    if (existing) {
+      // Update existing config
+      const { data, error } = await supabase
+        .from('workshop_config')
+        .update(config)
+        .eq('id', existing.id)
+        .select()
+        .single()
+
+      if (error) {
+        return createErrorResponse(error.message)
+      }
+
+      return createSuccessResponse(data, 'Configuración actualizada')
+    } else {
+      // Create new config (upsert behavior)
+      const defaultConfig = {
+        name: config.name || 'Mi Taller',
+        order_prefix: config.order_prefix || 'ORD',
+        order_counter: 0,
+        currency: config.currency || 'USD',
+        tax_regime: config.tax_regime || 'general',
+        whatsapp_enabled: config.whatsapp_enabled || false,
+        ...config
+      }
+
+      const { data, error } = await supabase
+        .from('workshop_config')
+        .insert(defaultConfig)
+        .select()
+        .single()
+
+      if (error) {
+        return createErrorResponse(error.message)
+      }
+
+      return createSuccessResponse(data, 'Configuración creada')
     }
-
-    const { data, error } = await supabase
-      .from('workshop_config')
-      .update(config)
-      .eq('id', existing.id)
-      .select()
-      .single()
-
-    if (error) {
-      return createErrorResponse(error.message)
-    }
-
-    return createSuccessResponse(data, 'Configuración actualizada')
   }
 }
 

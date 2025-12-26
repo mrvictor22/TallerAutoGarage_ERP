@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { configApi, usersApi, expenseCategoriesApi } from '@/services/supabase-api';
 import { WorkshopConfig, Profile, ExpenseCategory } from '@/types/database';
 import { useAuthStore } from '@/stores/auth';
+import { useWorkshopConfig } from '@/contexts/workshop-config';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -78,6 +79,7 @@ export function ConfigurationContent() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { isAdmin } = useAuthStore();
+  const { refetch: refetchWorkshopConfig } = useWorkshopConfig();
   const [activeTab, setActiveTab] = useState('general');
 
   // User management state
@@ -153,10 +155,17 @@ export function ConfigurationContent() {
   // Update workshop config mutation
   const updateConfigMutation = useMutation({
     mutationFn: (data: Partial<WorkshopConfig>) => configApi.updateWorkshopConfig(data),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       if (response.success) {
         toast.success(response.message || 'Configuración guardada exitosamente');
-        queryClient.invalidateQueries({ queryKey: ['workshop-config'] });
+        // Update form with saved data immediately
+        if (response.data) {
+          setConfigFormData(response.data);
+        }
+        // Force immediate refetch of React Query cache
+        await queryClient.refetchQueries({ queryKey: ['workshop-config'] });
+        // Refresh global workshop config context for sidebar/header
+        await refetchWorkshopConfig();
       } else {
         toast.error(response.error || 'Error al guardar configuración');
       }

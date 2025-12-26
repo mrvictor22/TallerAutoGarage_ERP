@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from '@/components/ui/sonner';
+import { WorkshopConfigProvider } from '@/contexts/workshop-config';
 import { useState } from 'react';
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -27,7 +28,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         enableSystem
         disableTransitionOnChange
       >
-        {children}
+        <WorkshopConfigProvider>
+          {children}
+        </WorkshopConfigProvider>
         <Toaster />
         <ReactQueryDevtools initialIsOpen={false} />
       </ThemeProvider>
