@@ -46,6 +46,9 @@ export interface Database {
           role: UserRole
           phone: string | null
           is_active: boolean
+          is_approved: boolean
+          approved_by: string | null
+          approved_at: string | null
           permissions: Json
           created_at: string
           updated_at: string
@@ -58,6 +61,9 @@ export interface Database {
           role?: UserRole
           phone?: string | null
           is_active?: boolean
+          is_approved?: boolean
+          approved_by?: string | null
+          approved_at?: string | null
           permissions?: Json
           created_at?: string
           updated_at?: string
@@ -70,6 +76,9 @@ export interface Database {
           role?: UserRole
           phone?: string | null
           is_active?: boolean
+          is_approved?: boolean
+          approved_by?: string | null
+          approved_at?: string | null
           permissions?: Json
           created_at?: string
           updated_at?: string
@@ -641,6 +650,8 @@ export interface Database {
           whatsapp_enabled: boolean
           whatsapp_business_number: string | null
           whatsapp_api_token: string | null
+          primary_color: string | null
+          secondary_color: string | null
           created_at: string
           updated_at: string
         }
@@ -660,6 +671,8 @@ export interface Database {
           whatsapp_enabled?: boolean
           whatsapp_business_number?: string | null
           whatsapp_api_token?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -679,6 +692,8 @@ export interface Database {
           whatsapp_enabled?: boolean
           whatsapp_business_number?: string | null
           whatsapp_api_token?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
           created_at?: string
           updated_at?: string
         }

@@ -1176,6 +1176,70 @@ export const usersApi = {
     }
 
     return createSuccessResponse(data, isActive ? 'Usuario activado' : 'Usuario desactivado')
+  },
+
+  getPendingApprovals: async (): Promise<ApiResponse<Profile[]>> => {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('is_approved', false)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      return createErrorResponse(error.message)
+    }
+
+    return createSuccessResponse(data)
+  },
+
+  approveUser: async (id: string, approvedById: string): Promise<ApiResponse<Profile>> => {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({
+        is_approved: true,
+        approved_by: approvedById,
+        approved_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      return createErrorResponse(error.message)
+    }
+
+    return createSuccessResponse(data, 'Usuario aprobado exitosamente')
+  },
+
+  rejectUser: async (id: string): Promise<ApiResponse<null>> => {
+    const supabase = createClient()
+
+    // First, get the user to delete from auth
+    const { data: profile, error: fetchError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', id)
+      .single()
+
+    if (fetchError || !profile) {
+      return createErrorResponse('Usuario no encontrado')
+    }
+
+    // Delete the profile (this will cascade or the auth user can remain but profile is gone)
+    const { error: deleteError } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', id)
+
+    if (deleteError) {
+      return createErrorResponse(deleteError.message)
+    }
+
+    return createSuccessResponse(null, 'Solicitud de usuario rechazada')
   }
 }
 
@@ -1226,27 +1290,50 @@ export const configApi = {
   updateWorkshopConfig: async (config: Partial<WorkshopConfig>): Promise<ApiResponse<WorkshopConfig>> => {
     const supabase = createClient()
 
+    // Check if config exists
     const { data: existing } = await supabase
       .from('workshop_config')
       .select('id')
-      .single()
+      .maybeSingle()
 
-    if (!existing) {
-      return createErrorResponse('Configuración no encontrada')
+    if (existing) {
+      // Update existing config
+      const { data, error } = await supabase
+        .from('workshop_config')
+        .update(config)
+        .eq('id', existing.id)
+        .select()
+        .single()
+
+      if (error) {
+        return createErrorResponse(error.message)
+      }
+
+      return createSuccessResponse(data, 'Configuración actualizada')
+    } else {
+      // Create new config (upsert behavior)
+      const defaultConfig = {
+        name: config.name || 'Mi Taller',
+        order_prefix: config.order_prefix || 'ORD',
+        order_counter: 0,
+        currency: config.currency || 'USD',
+        tax_regime: config.tax_regime || 'general',
+        whatsapp_enabled: config.whatsapp_enabled || false,
+        ...config
+      }
+
+      const { data, error } = await supabase
+        .from('workshop_config')
+        .insert(defaultConfig)
+        .select()
+        .single()
+
+      if (error) {
+        return createErrorResponse(error.message)
+      }
+
+      return createSuccessResponse(data, 'Configuración creada')
     }
-
-    const { data, error } = await supabase
-      .from('workshop_config')
-      .update(config)
-      .eq('id', existing.id)
-      .select()
-      .single()
-
-    if (error) {
-      return createErrorResponse(error.message)
-    }
-
-    return createSuccessResponse(data, 'Configuración actualizada')
   }
 }
 

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { configApi, usersApi, expenseCategoriesApi } from '@/services/supabase-api';
 import { WorkshopConfig, Profile, ExpenseCategory } from '@/types/database';
 import { useAuthStore } from '@/stores/auth';
+import { useWorkshopConfig } from '@/contexts/workshop-config';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -54,7 +55,14 @@ import {
   MessageSquare,
   Tag,
   AlertCircle,
-  Loader2
+  Loader2,
+  Palette,
+  Wrench,
+  Zap,
+  UserCheck,
+  UserX,
+  Clock,
+  Mail
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ColumnDef } from '@tanstack/react-table';
@@ -77,7 +85,8 @@ interface CategoryFormData {
 export function ConfigurationContent() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { isAdmin } = useAuthStore();
+  const { isAdmin, isSuperAdmin, user } = useAuthStore();
+  const { refetch: refetchWorkshopConfig } = useWorkshopConfig();
   const [activeTab, setActiveTab] = useState('general');
 
   // User management state
@@ -107,6 +116,7 @@ export function ConfigurationContent() {
   // Workshop config form state
   const [configFormData, setConfigFormData] = useState<Partial<WorkshopConfig>>({});
   const [showWhatsAppToken, setShowWhatsAppToken] = useState(false);
+  const [isEditingConfig, setIsEditingConfig] = useState(false);
 
   // Check admin permissions
   useEffect(() => {
@@ -124,6 +134,9 @@ export function ConfigurationContent() {
   });
 
   const config = configResponse?.data;
+
+  // Check if config exists (has been saved before)
+  const configExists = !!(config?.id);
 
   // Initialize form data when config loads
   useEffect(() => {
@@ -150,13 +163,31 @@ export function ConfigurationContent() {
 
   const categories = categoriesResponse?.data || [];
 
+  // Fetch pending approvals (only for super admin)
+  const { data: pendingApprovalsResponse, isLoading: pendingApprovalsLoading } = useQuery({
+    queryKey: ['pending-approvals'],
+    queryFn: () => usersApi.getPendingApprovals(),
+    enabled: isSuperAdmin()
+  });
+
+  const pendingApprovals = pendingApprovalsResponse?.data || [];
+
   // Update workshop config mutation
   const updateConfigMutation = useMutation({
     mutationFn: (data: Partial<WorkshopConfig>) => configApi.updateWorkshopConfig(data),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       if (response.success) {
         toast.success(response.message || 'Configuración guardada exitosamente');
-        queryClient.invalidateQueries({ queryKey: ['workshop-config'] });
+        // Update form with saved data immediately
+        if (response.data) {
+          setConfigFormData(response.data);
+        }
+        // Exit edit mode
+        setIsEditingConfig(false);
+        // Force immediate refetch of React Query cache
+        await queryClient.refetchQueries({ queryKey: ['workshop-config'] });
+        // Refresh global workshop config context for sidebar/header
+        await refetchWorkshopConfig();
       } else {
         toast.error(response.error || 'Error al guardar configuración');
       }
@@ -267,6 +298,33 @@ export function ConfigurationContent() {
         setCategoryToDelete(null);
       } else {
         toast.error(response.error || 'Error al eliminar categoría');
+      }
+    }
+  });
+
+  // Approve user mutation
+  const approveUserMutation = useMutation({
+    mutationFn: (userId: string) => usersApi.approveUser(userId, user?.id || ''),
+    onSuccess: (response) => {
+      if (response.success) {
+        toast.success(response.message || 'Usuario aprobado exitosamente');
+        queryClient.invalidateQueries({ queryKey: ['pending-approvals'] });
+        queryClient.invalidateQueries({ queryKey: ['users'] });
+      } else {
+        toast.error(response.error || 'Error al aprobar usuario');
+      }
+    }
+  });
+
+  // Reject user mutation
+  const rejectUserMutation = useMutation({
+    mutationFn: (userId: string) => usersApi.rejectUser(userId),
+    onSuccess: (response) => {
+      if (response.success) {
+        toast.success(response.message || 'Solicitud rechazada');
+        queryClient.invalidateQueries({ queryKey: ['pending-approvals'] });
+      } else {
+        toast.error(response.error || 'Error al rechazar solicitud');
       }
     }
   });
@@ -597,10 +655,41 @@ export function ConfigurationContent() {
             <Tag className="mr-2 h-4 w-4" />
             Categorías ({categories.length})
           </TabsTrigger>
+          <TabsTrigger value="branding">
+            <Palette className="mr-2 h-4 w-4" />
+            Apariencia
+          </TabsTrigger>
+          {isSuperAdmin() && (
+            <TabsTrigger value="solicitudes" className="relative">
+              <Clock className="mr-2 h-4 w-4" />
+              Solicitudes
+              {pendingApprovals.length > 0 && (
+                <span className="ml-2 bg-orange-500 text-white text-xs rounded-full px-2 py-0.5">
+                  {pendingApprovals.length}
+                </span>
+              )}
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* General Tab */}
         <TabsContent value="general" className="space-y-6">
+          {/* Edit mode banner */}
+          {configExists && !isEditingConfig && (
+            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+              <div className="flex items-center gap-2">
+                <Settings className="h-5 w-5 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  La configuración del taller ya está establecida
+                </span>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setIsEditingConfig(true)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Editar
+              </Button>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Basic Information */}
             <Card>
@@ -616,6 +705,7 @@ export function ConfigurationContent() {
                     value={configFormData.name || ''}
                     onChange={(e) => setConfigFormData({ ...configFormData, name: e.target.value })}
                     placeholder="Nombre del taller"
+                    disabled={configExists && !isEditingConfig}
                   />
                 </div>
                 <div>
@@ -626,6 +716,7 @@ export function ConfigurationContent() {
                     onChange={(e) => setConfigFormData({ ...configFormData, address: e.target.value })}
                     placeholder="Dirección completa del taller"
                     rows={3}
+                    disabled={configExists && !isEditingConfig}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -636,6 +727,7 @@ export function ConfigurationContent() {
                       value={configFormData.phone || ''}
                       onChange={(e) => setConfigFormData({ ...configFormData, phone: e.target.value })}
                       placeholder="(503) 1234-5678"
+                      disabled={configExists && !isEditingConfig}
                     />
                   </div>
                   <div>
@@ -646,6 +738,7 @@ export function ConfigurationContent() {
                       value={configFormData.email || ''}
                       onChange={(e) => setConfigFormData({ ...configFormData, email: e.target.value })}
                       placeholder="contacto@taller.com"
+                      disabled={configExists && !isEditingConfig}
                     />
                   </div>
                 </div>
@@ -666,6 +759,7 @@ export function ConfigurationContent() {
                     value={configFormData.tax_id || ''}
                     onChange={(e) => setConfigFormData({ ...configFormData, tax_id: e.target.value })}
                     placeholder="1234567890123"
+                    disabled={configExists && !isEditingConfig}
                   />
                 </div>
                 <div>
@@ -673,6 +767,7 @@ export function ConfigurationContent() {
                   <Select
                     value={configFormData.tax_regime || 'general'}
                     onValueChange={(value) => setConfigFormData({ ...configFormData, tax_regime: value })}
+                    disabled={configExists && !isEditingConfig}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -689,6 +784,7 @@ export function ConfigurationContent() {
                   <Select
                     value={configFormData.currency || 'USD'}
                     onValueChange={(value) => setConfigFormData({ ...configFormData, currency: value })}
+                    disabled={configExists && !isEditingConfig}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -707,16 +803,29 @@ export function ConfigurationContent() {
                     onChange={(e) => setConfigFormData({ ...configFormData, order_prefix: e.target.value.toUpperCase() })}
                     placeholder="ORD"
                     maxLength={5}
+                    disabled={configExists && !isEditingConfig}
                   />
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            {isEditingConfig && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsEditingConfig(false);
+                  // Reset form to original values
+                  if (config) setConfigFormData(config);
+                }}
+              >
+                Cancelar
+              </Button>
+            )}
             <Button
               onClick={handleSaveConfig}
-              disabled={updateConfigMutation.isPending}
+              disabled={updateConfigMutation.isPending || (configExists && !isEditingConfig)}
             >
               {updateConfigMutation.isPending ? (
                 <>
@@ -894,6 +1003,409 @@ export function ConfigurationContent() {
             />
           )}
         </TabsContent>
+
+        {/* Branding Tab */}
+        <TabsContent value="branding" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Color Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Palette className="h-5 w-5" />
+                  Colores de Marca
+                </CardTitle>
+                <CardDescription>
+                  Personaliza los colores de la página de inicio y login
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="primary-color" className="flex items-center gap-2 mb-2">
+                      <Wrench className="h-4 w-4" />
+                      Color Primario
+                    </Label>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Color principal usado en botones y acentos (ej: naranja tuning)
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        id="primary-color"
+                        type="color"
+                        value={configFormData.primary_color || '#f97316'}
+                        onChange={(e) =>
+                          setConfigFormData({ ...configFormData, primary_color: e.target.value })
+                        }
+                        className="w-16 h-12 cursor-pointer p-1"
+                      />
+                      <Input
+                        value={configFormData.primary_color || '#f97316'}
+                        onChange={(e) =>
+                          setConfigFormData({ ...configFormData, primary_color: e.target.value })
+                        }
+                        placeholder="#f97316"
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <Label htmlFor="secondary-color" className="flex items-center gap-2 mb-2">
+                      <Zap className="h-4 w-4" />
+                      Color Secundario
+                    </Label>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Color secundario para degradados y efectos (ej: rojo racing)
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        id="secondary-color"
+                        type="color"
+                        value={configFormData.secondary_color || '#ef4444'}
+                        onChange={(e) =>
+                          setConfigFormData({ ...configFormData, secondary_color: e.target.value })
+                        }
+                        className="w-16 h-12 cursor-pointer p-1"
+                      />
+                      <Input
+                        value={configFormData.secondary_color || '#ef4444'}
+                        onChange={(e) =>
+                          setConfigFormData({ ...configFormData, secondary_color: e.target.value })
+                        }
+                        placeholder="#ef4444"
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Quick Presets */}
+                <div>
+                  <Label className="mb-3 block">Paletas Predefinidas</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfigFormData({
+                        ...configFormData,
+                        primary_color: '#f97316',
+                        secondary_color: '#ef4444'
+                      })}
+                      className="h-auto py-2 flex flex-col gap-1"
+                    >
+                      <div className="flex gap-1">
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#f97316' }} />
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#ef4444' }} />
+                      </div>
+                      <span className="text-xs">Tuning</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfigFormData({
+                        ...configFormData,
+                        primary_color: '#3b82f6',
+                        secondary_color: '#06b6d4'
+                      })}
+                      className="h-auto py-2 flex flex-col gap-1"
+                    >
+                      <div className="flex gap-1">
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#06b6d4' }} />
+                      </div>
+                      <span className="text-xs">Tech</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfigFormData({
+                        ...configFormData,
+                        primary_color: '#22c55e',
+                        secondary_color: '#84cc16'
+                      })}
+                      className="h-auto py-2 flex flex-col gap-1"
+                    >
+                      <div className="flex gap-1">
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#22c55e' }} />
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#84cc16' }} />
+                      </div>
+                      <span className="text-xs">Eco</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfigFormData({
+                        ...configFormData,
+                        primary_color: '#a855f7',
+                        secondary_color: '#ec4899'
+                      })}
+                      className="h-auto py-2 flex flex-col gap-1"
+                    >
+                      <div className="flex gap-1">
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#a855f7' }} />
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#ec4899' }} />
+                      </div>
+                      <span className="text-xs">Moderno</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfigFormData({
+                        ...configFormData,
+                        primary_color: '#eab308',
+                        secondary_color: '#f59e0b'
+                      })}
+                      className="h-auto py-2 flex flex-col gap-1"
+                    >
+                      <div className="flex gap-1">
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#eab308' }} />
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#f59e0b' }} />
+                      </div>
+                      <span className="text-xs">Clásico</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfigFormData({
+                        ...configFormData,
+                        primary_color: '#dc2626',
+                        secondary_color: '#991b1b'
+                      })}
+                      className="h-auto py-2 flex flex-col gap-1"
+                    >
+                      <div className="flex gap-1">
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#dc2626' }} />
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#991b1b' }} />
+                      </div>
+                      <span className="text-xs">Racing</span>
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Live Preview */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Eye className="h-5 w-5" />
+                  Vista Previa
+                </CardTitle>
+                <CardDescription>
+                  Así se verá tu página de login
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div
+                  className="relative rounded-lg overflow-hidden border"
+                  style={{ height: '400px' }}
+                >
+                  {/* Mini Login Preview */}
+                  <div
+                    className="absolute inset-0 flex items-center justify-center"
+                    style={{
+                      background: `linear-gradient(135deg, ${configFormData.primary_color || '#f97316'} 0%, ${configFormData.secondary_color || '#ef4444'} 100%)`
+                    }}
+                  >
+                    {/* Preview Card */}
+                    <div className="bg-background/95 backdrop-blur-sm rounded-xl shadow-2xl p-6 w-[85%] max-w-[280px]">
+                      {/* Logo Preview */}
+                      <div className="text-center mb-4">
+                        <div
+                          className="w-14 h-14 mx-auto rounded-xl flex items-center justify-center mb-2"
+                          style={{
+                            background: `linear-gradient(135deg, ${configFormData.primary_color || '#f97316'} 0%, ${configFormData.secondary_color || '#ef4444'} 100%)`
+                          }}
+                        >
+                          <Wrench className="h-7 w-7 text-white" />
+                        </div>
+                        <h3 className="text-sm font-bold">{configFormData.name || 'Tu Taller'}</h3>
+                        <p className="text-[10px] text-muted-foreground">Sistema de Gestión</p>
+                      </div>
+
+                      {/* Form Preview */}
+                      <div className="space-y-3">
+                        <div className="h-8 bg-muted/50 rounded-md border" />
+                        <div className="h-8 bg-muted/50 rounded-md border" />
+                        <div
+                          className="h-8 rounded-md flex items-center justify-center text-white text-xs font-medium"
+                          style={{
+                            background: `linear-gradient(135deg, ${configFormData.primary_color || '#f97316'} 0%, ${configFormData.secondary_color || '#ef4444'} 100%)`
+                          }}
+                        >
+                          Iniciar Sesión
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Decorative Elements */}
+                  <div
+                    className="absolute top-4 right-4 w-20 h-20 rounded-full opacity-20"
+                    style={{ backgroundColor: configFormData.secondary_color || '#ef4444' }}
+                  />
+                  <div
+                    className="absolute bottom-4 left-4 w-16 h-16 rounded-full opacity-20"
+                    style={{ backgroundColor: configFormData.primary_color || '#f97316' }}
+                  />
+                </div>
+
+                {/* Preview Labels */}
+                <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: configFormData.primary_color || '#f97316' }}
+                    />
+                    <span>Primario</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: configFormData.secondary_color || '#ef4444' }}
+                    />
+                    <span>Secundario</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSaveConfig}
+              disabled={updateConfigMutation.isPending}
+            >
+              {updateConfigMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Guardar Colores
+                </>
+              )}
+            </Button>
+          </div>
+        </TabsContent>
+
+        {/* Pending Approvals Tab - Only for Super Admin */}
+        {isSuperAdmin() && (
+          <TabsContent value="solicitudes" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-orange-500" />
+                  Solicitudes de Registro Pendientes
+                </CardTitle>
+                <CardDescription>
+                  Revisa y aprueba las solicitudes de nuevos usuarios que desean acceder al sistema.
+                  Solo tú (super administrador) puedes aprobar estas solicitudes.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {pendingApprovalsLoading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                ) : pendingApprovals.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
+                    <UserCheck className="h-12 w-12 mb-2 opacity-50" />
+                    <p>No hay solicitudes pendientes</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {pendingApprovals.map((pendingUser) => (
+                      <div
+                        key={pendingUser.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0 w-12 h-12 bg-orange-500/10 rounded-full flex items-center justify-center">
+                            <span className="text-lg font-bold text-orange-500">
+                              {pendingUser.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-medium">{pendingUser.full_name}</p>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Mail className="h-3 w-3" />
+                              {pendingUser.email}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="secondary" className="text-xs">
+                                {pendingUser.role === 'admin' && 'Administrador'}
+                                {pendingUser.role === 'reception' && 'Recepción'}
+                                {pendingUser.role === 'mechanic_lead' && 'Jefe de Mecánicos'}
+                                {pendingUser.role === 'technician' && 'Técnico'}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                Solicitado: {new Date(pendingUser.created_at).toLocaleDateString('es-ES', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => rejectUserMutation.mutate(pendingUser.id)}
+                            disabled={rejectUserMutation.isPending}
+                          >
+                            <UserX className="h-4 w-4 mr-1" />
+                            Rechazar
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => approveUserMutation.mutate(pendingUser.id)}
+                            disabled={approveUserMutation.isPending}
+                          >
+                            <UserCheck className="h-4 w-4 mr-1" />
+                            Aprobar
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Info Card */}
+            <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+              <CardContent className="pt-6">
+                <div className="flex gap-4">
+                  <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                      Acerca de las aprobaciones
+                    </p>
+                    <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                      <li>• Cuando apruebas un usuario, podrá acceder al sistema inmediatamente</li>
+                      <li>• Los usuarios aprobados aparecerán en la pestaña &quot;Usuarios&quot;</li>
+                      <li>• Puedes cambiar el rol de un usuario después de aprobarlo</li>
+                      <li>• Si rechazas una solicitud, el usuario deberá registrarse nuevamente</li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* User Dialog */}
