@@ -109,6 +109,7 @@ export function ConfigurationContent() {
   // Workshop config form state
   const [configFormData, setConfigFormData] = useState<Partial<WorkshopConfig>>({});
   const [showWhatsAppToken, setShowWhatsAppToken] = useState(false);
+  const [isEditingConfig, setIsEditingConfig] = useState(false);
 
   // Check admin permissions
   useEffect(() => {
@@ -126,6 +127,9 @@ export function ConfigurationContent() {
   });
 
   const config = configResponse?.data;
+
+  // Check if config exists (has been saved before)
+  const configExists = !!(config?.id);
 
   // Initialize form data when config loads
   useEffect(() => {
@@ -162,6 +166,8 @@ export function ConfigurationContent() {
         if (response.data) {
           setConfigFormData(response.data);
         }
+        // Exit edit mode
+        setIsEditingConfig(false);
         // Force immediate refetch of React Query cache
         await queryClient.refetchQueries({ queryKey: ['workshop-config'] });
         // Refresh global workshop config context for sidebar/header
@@ -610,6 +616,22 @@ export function ConfigurationContent() {
 
         {/* General Tab */}
         <TabsContent value="general" className="space-y-6">
+          {/* Edit mode banner */}
+          {configExists && !isEditingConfig && (
+            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+              <div className="flex items-center gap-2">
+                <Settings className="h-5 w-5 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  La configuración del taller ya está establecida
+                </span>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setIsEditingConfig(true)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Editar
+              </Button>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Basic Information */}
             <Card>
@@ -625,6 +647,7 @@ export function ConfigurationContent() {
                     value={configFormData.name || ''}
                     onChange={(e) => setConfigFormData({ ...configFormData, name: e.target.value })}
                     placeholder="Nombre del taller"
+                    disabled={configExists && !isEditingConfig}
                   />
                 </div>
                 <div>
@@ -635,6 +658,7 @@ export function ConfigurationContent() {
                     onChange={(e) => setConfigFormData({ ...configFormData, address: e.target.value })}
                     placeholder="Dirección completa del taller"
                     rows={3}
+                    disabled={configExists && !isEditingConfig}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -645,6 +669,7 @@ export function ConfigurationContent() {
                       value={configFormData.phone || ''}
                       onChange={(e) => setConfigFormData({ ...configFormData, phone: e.target.value })}
                       placeholder="(503) 1234-5678"
+                      disabled={configExists && !isEditingConfig}
                     />
                   </div>
                   <div>
@@ -655,6 +680,7 @@ export function ConfigurationContent() {
                       value={configFormData.email || ''}
                       onChange={(e) => setConfigFormData({ ...configFormData, email: e.target.value })}
                       placeholder="contacto@taller.com"
+                      disabled={configExists && !isEditingConfig}
                     />
                   </div>
                 </div>
@@ -675,6 +701,7 @@ export function ConfigurationContent() {
                     value={configFormData.tax_id || ''}
                     onChange={(e) => setConfigFormData({ ...configFormData, tax_id: e.target.value })}
                     placeholder="1234567890123"
+                    disabled={configExists && !isEditingConfig}
                   />
                 </div>
                 <div>
@@ -682,6 +709,7 @@ export function ConfigurationContent() {
                   <Select
                     value={configFormData.tax_regime || 'general'}
                     onValueChange={(value) => setConfigFormData({ ...configFormData, tax_regime: value })}
+                    disabled={configExists && !isEditingConfig}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -698,6 +726,7 @@ export function ConfigurationContent() {
                   <Select
                     value={configFormData.currency || 'USD'}
                     onValueChange={(value) => setConfigFormData({ ...configFormData, currency: value })}
+                    disabled={configExists && !isEditingConfig}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -716,16 +745,29 @@ export function ConfigurationContent() {
                     onChange={(e) => setConfigFormData({ ...configFormData, order_prefix: e.target.value.toUpperCase() })}
                     placeholder="ORD"
                     maxLength={5}
+                    disabled={configExists && !isEditingConfig}
                   />
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            {isEditingConfig && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsEditingConfig(false);
+                  // Reset form to original values
+                  if (config) setConfigFormData(config);
+                }}
+              >
+                Cancelar
+              </Button>
+            )}
             <Button
               onClick={handleSaveConfig}
-              disabled={updateConfigMutation.isPending}
+              disabled={updateConfigMutation.isPending || (configExists && !isEditingConfig)}
             >
               {updateConfigMutation.isPending ? (
                 <>
