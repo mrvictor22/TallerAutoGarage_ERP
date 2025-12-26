@@ -1176,6 +1176,70 @@ export const usersApi = {
     }
 
     return createSuccessResponse(data, isActive ? 'Usuario activado' : 'Usuario desactivado')
+  },
+
+  getPendingApprovals: async (): Promise<ApiResponse<Profile[]>> => {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('is_approved', false)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      return createErrorResponse(error.message)
+    }
+
+    return createSuccessResponse(data)
+  },
+
+  approveUser: async (id: string, approvedById: string): Promise<ApiResponse<Profile>> => {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({
+        is_approved: true,
+        approved_by: approvedById,
+        approved_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      return createErrorResponse(error.message)
+    }
+
+    return createSuccessResponse(data, 'Usuario aprobado exitosamente')
+  },
+
+  rejectUser: async (id: string): Promise<ApiResponse<null>> => {
+    const supabase = createClient()
+
+    // First, get the user to delete from auth
+    const { data: profile, error: fetchError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', id)
+      .single()
+
+    if (fetchError || !profile) {
+      return createErrorResponse('Usuario no encontrado')
+    }
+
+    // Delete the profile (this will cascade or the auth user can remain but profile is gone)
+    const { error: deleteError } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', id)
+
+    if (deleteError) {
+      return createErrorResponse(deleteError.message)
+    }
+
+    return createSuccessResponse(null, 'Solicitud de usuario rechazada')
   }
 }
 

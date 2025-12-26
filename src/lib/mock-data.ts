@@ -441,6 +441,8 @@ export const mockWorkshopConfig: WorkshopConfig = {
   whatsapp_enabled: true,
   whatsapp_business_number: '+503 7234-5678',
   whatsapp_api_token: null,
+  primary_color: '#f97316',
+  secondary_color: '#ef4444',
   created_at: '2024-01-01T00:00:00.000Z',
   updated_at: '2024-01-01T00:00:00.000Z'
 };

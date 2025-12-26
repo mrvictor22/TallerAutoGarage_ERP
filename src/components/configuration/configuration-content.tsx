@@ -58,7 +58,11 @@ import {
   Loader2,
   Palette,
   Wrench,
-  Zap
+  Zap,
+  UserCheck,
+  UserX,
+  Clock,
+  Mail
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ColumnDef } from '@tanstack/react-table';
@@ -81,7 +85,7 @@ interface CategoryFormData {
 export function ConfigurationContent() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { isAdmin } = useAuthStore();
+  const { isAdmin, isSuperAdmin, user } = useAuthStore();
   const { refetch: refetchWorkshopConfig } = useWorkshopConfig();
   const [activeTab, setActiveTab] = useState('general');
 
@@ -158,6 +162,15 @@ export function ConfigurationContent() {
   });
 
   const categories = categoriesResponse?.data || [];
+
+  // Fetch pending approvals (only for super admin)
+  const { data: pendingApprovalsResponse, isLoading: pendingApprovalsLoading } = useQuery({
+    queryKey: ['pending-approvals'],
+    queryFn: () => usersApi.getPendingApprovals(),
+    enabled: isSuperAdmin()
+  });
+
+  const pendingApprovals = pendingApprovalsResponse?.data || [];
 
   // Update workshop config mutation
   const updateConfigMutation = useMutation({
@@ -285,6 +298,33 @@ export function ConfigurationContent() {
         setCategoryToDelete(null);
       } else {
         toast.error(response.error || 'Error al eliminar categoría');
+      }
+    }
+  });
+
+  // Approve user mutation
+  const approveUserMutation = useMutation({
+    mutationFn: (userId: string) => usersApi.approveUser(userId, user?.id || ''),
+    onSuccess: (response) => {
+      if (response.success) {
+        toast.success(response.message || 'Usuario aprobado exitosamente');
+        queryClient.invalidateQueries({ queryKey: ['pending-approvals'] });
+        queryClient.invalidateQueries({ queryKey: ['users'] });
+      } else {
+        toast.error(response.error || 'Error al aprobar usuario');
+      }
+    }
+  });
+
+  // Reject user mutation
+  const rejectUserMutation = useMutation({
+    mutationFn: (userId: string) => usersApi.rejectUser(userId),
+    onSuccess: (response) => {
+      if (response.success) {
+        toast.success(response.message || 'Solicitud rechazada');
+        queryClient.invalidateQueries({ queryKey: ['pending-approvals'] });
+      } else {
+        toast.error(response.error || 'Error al rechazar solicitud');
       }
     }
   });
@@ -619,6 +659,17 @@ export function ConfigurationContent() {
             <Palette className="mr-2 h-4 w-4" />
             Apariencia
           </TabsTrigger>
+          {isSuperAdmin() && (
+            <TabsTrigger value="solicitudes" className="relative">
+              <Clock className="mr-2 h-4 w-4" />
+              Solicitudes
+              {pendingApprovals.length > 0 && (
+                <span className="ml-2 bg-orange-500 text-white text-xs rounded-full px-2 py-0.5">
+                  {pendingApprovals.length}
+                </span>
+              )}
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* General Tab */}
@@ -1243,6 +1294,118 @@ export function ConfigurationContent() {
             </Button>
           </div>
         </TabsContent>
+
+        {/* Pending Approvals Tab - Only for Super Admin */}
+        {isSuperAdmin() && (
+          <TabsContent value="solicitudes" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-orange-500" />
+                  Solicitudes de Registro Pendientes
+                </CardTitle>
+                <CardDescription>
+                  Revisa y aprueba las solicitudes de nuevos usuarios que desean acceder al sistema.
+                  Solo tú (super administrador) puedes aprobar estas solicitudes.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {pendingApprovalsLoading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                ) : pendingApprovals.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
+                    <UserCheck className="h-12 w-12 mb-2 opacity-50" />
+                    <p>No hay solicitudes pendientes</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {pendingApprovals.map((pendingUser) => (
+                      <div
+                        key={pendingUser.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0 w-12 h-12 bg-orange-500/10 rounded-full flex items-center justify-center">
+                            <span className="text-lg font-bold text-orange-500">
+                              {pendingUser.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-medium">{pendingUser.full_name}</p>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Mail className="h-3 w-3" />
+                              {pendingUser.email}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="secondary" className="text-xs">
+                                {pendingUser.role === 'admin' && 'Administrador'}
+                                {pendingUser.role === 'reception' && 'Recepción'}
+                                {pendingUser.role === 'mechanic_lead' && 'Jefe de Mecánicos'}
+                                {pendingUser.role === 'technician' && 'Técnico'}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                Solicitado: {new Date(pendingUser.created_at).toLocaleDateString('es-ES', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => rejectUserMutation.mutate(pendingUser.id)}
+                            disabled={rejectUserMutation.isPending}
+                          >
+                            <UserX className="h-4 w-4 mr-1" />
+                            Rechazar
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => approveUserMutation.mutate(pendingUser.id)}
+                            disabled={approveUserMutation.isPending}
+                          >
+                            <UserCheck className="h-4 w-4 mr-1" />
+                            Aprobar
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Info Card */}
+            <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+              <CardContent className="pt-6">
+                <div className="flex gap-4">
+                  <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                      Acerca de las aprobaciones
+                    </p>
+                    <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                      <li>• Cuando apruebas un usuario, podrá acceder al sistema inmediatamente</li>
+                      <li>• Los usuarios aprobados aparecerán en la pestaña &quot;Usuarios&quot;</li>
+                      <li>• Puedes cambiar el rol de un usuario después de aprobarlo</li>
+                      <li>• Si rechazas una solicitud, el usuario deberá registrarse nuevamente</li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* User Dialog */}

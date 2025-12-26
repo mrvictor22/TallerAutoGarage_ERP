@@ -46,6 +46,9 @@ export interface Database {
           role: UserRole
           phone: string | null
           is_active: boolean
+          is_approved: boolean
+          approved_by: string | null
+          approved_at: string | null
           permissions: Json
           created_at: string
           updated_at: string
@@ -58,6 +61,9 @@ export interface Database {
           role?: UserRole
           phone?: string | null
           is_active?: boolean
+          is_approved?: boolean
+          approved_by?: string | null
+          approved_at?: string | null
           permissions?: Json
           created_at?: string
           updated_at?: string
@@ -70,6 +76,9 @@ export interface Database {
           role?: UserRole
           phone?: string | null
           is_active?: boolean
+          is_approved?: boolean
+          approved_by?: string | null
+          approved_at?: string | null
           permissions?: Json
           created_at?: string
           updated_at?: string

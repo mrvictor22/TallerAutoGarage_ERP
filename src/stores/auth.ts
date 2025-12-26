@@ -3,17 +3,21 @@ import { persist } from 'zustand/middleware'
 import { createClient } from '@/lib/supabase/client'
 import { Profile, UserRole } from '@/types/database'
 
+// Super admin email - only this user can approve registrations
+const SUPER_ADMIN_EMAIL = 'vc70383@hotmail.com'
+
 interface AuthState {
   user: Profile | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; pendingApproval?: boolean }>
   logout: () => Promise<void>
   signUp: (email: string, password: string, fullName: string, role?: UserRole) => Promise<{ success: boolean; error?: string }>
   getCurrentUser: () => Promise<void>
   hasPermission: (resource: string, action: string) => boolean
   hasRole: (role: UserRole) => boolean
   isAdmin: () => boolean
+  isSuperAdmin: () => boolean
 }
 
 // Role-based permissions configuration
@@ -92,6 +96,17 @@ export const useAuthStore = create<AuthState>()(
               return { success: false, error: 'Tu cuenta ha sido desactivada' }
             }
 
+            // Check if user is approved (super admin is always approved)
+            if (!profile.is_approved && profile.email !== SUPER_ADMIN_EMAIL) {
+              await supabase.auth.signOut()
+              set({ isLoading: false })
+              return {
+                success: false,
+                error: 'Tu cuenta está pendiente de aprobación. El administrador revisará tu solicitud pronto.',
+                pendingApproval: true
+              }
+            }
+
             set({
               user: profile,
               isAuthenticated: true,
@@ -141,10 +156,11 @@ export const useAuthStore = create<AuthState>()(
 
           set({ isLoading: false })
 
-          if (data.user && !data.user.confirmed_at) {
+          if (data.user) {
+            // Registration successful - user needs to be approved
             return {
               success: true,
-              error: 'Por favor revisa tu email para confirmar tu cuenta'
+              error: 'Tu cuenta ha sido creada. Un administrador debe aprobar tu solicitud antes de poder acceder al sistema.'
             }
           }
 
@@ -169,7 +185,8 @@ export const useAuthStore = create<AuthState>()(
               .eq('id', user.id)
               .single()
 
-            if (profile && profile.is_active) {
+            // Check if user is active AND approved (or is super admin)
+            if (profile && profile.is_active && (profile.is_approved || profile.email === SUPER_ADMIN_EMAIL)) {
               set({
                 user: profile,
                 isAuthenticated: true,
@@ -221,6 +238,11 @@ export const useAuthStore = create<AuthState>()(
       isAdmin: () => {
         const { user } = get()
         return user?.role === 'admin'
+      },
+
+      isSuperAdmin: () => {
+        const { user } = get()
+        return user?.email === SUPER_ADMIN_EMAIL
       }
     }),
     {
