@@ -1,15 +1,120 @@
 'use client';
 
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { LoginForm } from '@/components/auth/login-form';
 import { useWorkshopConfig } from '@/contexts/workshop-config';
+import { CheckCircle, AlertCircle, Clock, X, Loader2 } from 'lucide-react';
 
-export default function LoginPage() {
+const messages: Record<string, { title: string; description: string; type: 'success' | 'warning' | 'error' }> = {
+  'email_verified': {
+    title: 'Correo Verificado',
+    description: 'Tu correo ha sido verificado exitosamente. Tu cuenta está pendiente de aprobación por un administrador.',
+    type: 'success'
+  },
+  'pending_approval': {
+    title: 'Cuenta Pendiente de Aprobación',
+    description: 'Tu correo ha sido verificado. Un administrador debe aprobar tu cuenta antes de que puedas acceder al sistema.',
+    type: 'warning'
+  }
+};
+
+const errorMessages: Record<string, string> = {
+  'otp_expired': 'El enlace de confirmación ha expirado. Por favor, regístrate de nuevo.',
+  'access_denied': 'Acceso denegado. El enlace puede haber expirado o ser inválido.',
+  'verification_failed': 'Error al verificar el correo. Por favor, intenta de nuevo.',
+  'exchange_failed': 'Error al procesar la autenticación.'
+};
+
+function LoginPageContent() {
+  const searchParams = useSearchParams();
   const { config } = useWorkshopConfig();
   const primaryColor = config?.primary_color || '#f97316';
   const secondaryColor = config?.secondary_color || '#ef4444';
 
+  const [notification, setNotification] = useState<{
+    title: string;
+    description: string;
+    type: 'success' | 'warning' | 'error';
+  } | null>(null);
+
+  useEffect(() => {
+    const confirmed = searchParams.get('confirmed');
+    const message = searchParams.get('message');
+    const error = searchParams.get('error');
+    const errorCode = searchParams.get('error_code');
+    const errorDescription = searchParams.get('error_description');
+
+    if (confirmed === 'true' && message && messages[message]) {
+      setNotification(messages[message]);
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (error || errorCode) {
+      const errorMsg = errorMessages[errorCode || error || ''] ||
+        errorDescription?.replace(/\+/g, ' ') ||
+        'Ha ocurrido un error de autenticación';
+      setNotification({
+        title: 'Error',
+        description: errorMsg,
+        type: 'error'
+      });
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [searchParams]);
+
+  const getNotificationStyles = (type: 'success' | 'warning' | 'error') => {
+    switch (type) {
+      case 'success':
+        return {
+          bg: 'bg-green-500/90',
+          border: 'border-green-400/50',
+          icon: CheckCircle
+        };
+      case 'warning':
+        return {
+          bg: `bg-gradient-to-r from-amber-500/90 to-orange-500/90`,
+          border: 'border-amber-400/50',
+          icon: Clock
+        };
+      case 'error':
+        return {
+          bg: 'bg-red-500/90',
+          border: 'border-red-400/50',
+          icon: AlertCircle
+        };
+    }
+  };
+
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
+      {/* Notification */}
+      {notification && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4 animate-in fade-in slide-in-from-top-4">
+          {(() => {
+            const styles = getNotificationStyles(notification.type);
+            const Icon = styles.icon;
+            return (
+              <div className={`relative ${styles.bg} backdrop-blur-sm text-white rounded-xl p-4 shadow-2xl border ${styles.border}`}>
+                <button
+                  onClick={() => setNotification(null)}
+                  className="absolute top-2 right-2 p-1 hover:bg-white/20 rounded-full transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <div className="flex items-start gap-3">
+                  <Icon className="w-6 h-6 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold">{notification.title}</p>
+                    <p className="text-sm opacity-90 mt-1">{notification.description}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
       {/* Animated Grid Background */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:64px_64px]" />
 
@@ -171,5 +276,21 @@ export default function LoginPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-black">
+      <Loader2 className="w-12 h-12 animate-spin text-orange-500" />
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }
