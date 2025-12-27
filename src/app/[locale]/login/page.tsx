@@ -1,10 +1,10 @@
 'use client';
 
-import { Suspense, useEffect, useState, useRef } from 'react';
+import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { LoginForm } from '@/components/auth/login-form';
 import { useWorkshopConfig } from '@/contexts/workshop-config';
-import { CheckCircle, AlertCircle, Clock, X, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 const messages: Record<string, { title: string; description: string; type: 'success' | 'warning' | 'error' }> = {
   'email_verified': {
@@ -43,18 +43,13 @@ function LoginPageContent() {
   const { config } = useWorkshopConfig();
   const primaryColor = config?.primary_color || '#f97316';
   const secondaryColor = config?.secondary_color || '#ef4444';
-  const hasProcessedParams = useRef(false);
 
-  const [notification, setNotification] = useState<{
-    title: string;
-    description: string;
-    type: 'success' | 'warning' | 'error';
-  } | null>(null);
+  // State to track if notification was dismissed
+  const [isDismissed, setIsDismissed] = useState(false);
 
-  // Process URL params on mount only
-  useEffect(() => {
-    // Prevent processing more than once
-    if (hasProcessedParams.current) return;
+  // Read notification from URL params directly in render
+  const getNotificationFromParams = () => {
+    if (isDismissed) return null;
 
     const confirmed = searchParams.get('confirmed');
     const message = searchParams.get('message');
@@ -63,80 +58,31 @@ function LoginPageContent() {
     const errorDescription = searchParams.get('error_description');
 
     if (confirmed === 'true' && message && messages[message]) {
-      hasProcessedParams.current = true;
-      setNotification(messages[message]);
-      // Clean URL after a small delay to ensure state is set
-      setTimeout(() => {
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }, 100);
+      return messages[message];
     } else if (error || errorCode) {
-      hasProcessedParams.current = true;
       const errorMsg = errorMessages[errorCode || error || ''] ||
         errorDescription?.replace(/\+/g, ' ') ||
         'Ha ocurrido un error de autenticación';
-      setNotification({
+      return {
         title: 'Error',
         description: errorMsg,
-        type: 'error'
-      });
-      // Clean URL after a small delay to ensure state is set
-      setTimeout(() => {
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }, 100);
+        type: 'error' as const
+      };
     }
-  }, [searchParams]);
 
-  const getNotificationStyles = (type: 'success' | 'warning' | 'error') => {
-    switch (type) {
-      case 'success':
-        return {
-          bg: 'bg-green-500/90',
-          border: 'border-green-400/50',
-          icon: CheckCircle
-        };
-      case 'warning':
-        return {
-          bg: `bg-gradient-to-r from-amber-500/90 to-orange-500/90`,
-          border: 'border-amber-400/50',
-          icon: Clock
-        };
-      case 'error':
-        return {
-          bg: 'bg-red-500/90',
-          border: 'border-red-400/50',
-          icon: AlertCircle
-        };
-    }
+    return null;
+  };
+
+  const notification = getNotificationFromParams();
+
+  const handleDismissNotification = () => {
+    setIsDismissed(true);
+    // Clean URL
+    window.history.replaceState({}, document.title, window.location.pathname);
   };
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
-      {/* Notification */}
-      {notification && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4 animate-in fade-in slide-in-from-top-4">
-          {(() => {
-            const styles = getNotificationStyles(notification.type);
-            const Icon = styles.icon;
-            return (
-              <div className={`relative ${styles.bg} backdrop-blur-sm text-white rounded-xl p-4 shadow-2xl border ${styles.border}`}>
-                <button
-                  onClick={() => setNotification(null)}
-                  className="absolute top-2 right-2 p-1 hover:bg-white/20 rounded-full transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-                <div className="flex items-start gap-3">
-                  <Icon className="w-6 h-6 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-semibold">{notification.title}</p>
-                    <p className="text-sm opacity-90 mt-1">{notification.description}</p>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-      )}
 
       {/* Animated Grid Background */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:64px_64px]" />
@@ -219,7 +165,12 @@ function LoginPageContent() {
 
       {/* Content */}
       <div className="relative z-10 w-full px-4 py-8">
-        <LoginForm primaryColor={primaryColor} secondaryColor={secondaryColor} />
+        <LoginForm
+          primaryColor={primaryColor}
+          secondaryColor={secondaryColor}
+          notification={notification}
+          onDismissNotification={handleDismissNotification}
+        />
       </div>
 
       {/* Custom CSS for animations */}

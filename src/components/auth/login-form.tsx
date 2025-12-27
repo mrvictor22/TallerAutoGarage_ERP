@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Mail, Lock, User, Wrench, Gauge, Zap } from 'lucide-react';
+import { Loader2, Mail, Lock, User, Wrench, Gauge, Zap, CheckCircle, AlertCircle, Clock, X } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkshopConfig } from '@/contexts/workshop-config';
 import { cn } from '@/lib/utils';
@@ -15,9 +15,20 @@ import { cn } from '@/lib/utils';
 interface LoginFormProps {
   primaryColor?: string;
   secondaryColor?: string;
+  notification?: {
+    title: string;
+    description: string;
+    type: 'success' | 'warning' | 'error';
+  } | null;
+  onDismissNotification?: () => void;
 }
 
-export function LoginForm({ primaryColor = '#f97316', secondaryColor = '#ef4444' }: LoginFormProps) {
+export function LoginForm({
+  primaryColor = '#f97316',
+  secondaryColor = '#ef4444',
+  notification,
+  onDismissNotification
+}: LoginFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -106,6 +117,29 @@ export function LoginForm({ primaryColor = '#f97316', secondaryColor = '#ef4444'
     background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor}, ${primaryColor})`
   };
 
+  const getNotificationStyles = (type: 'success' | 'warning' | 'error') => {
+    switch (type) {
+      case 'success':
+        return {
+          gradient: 'from-green-500 to-emerald-500',
+          icon: CheckCircle,
+          shadow: 'shadow-green-500/50'
+        };
+      case 'warning':
+        return {
+          gradient: 'from-amber-500 to-orange-500',
+          icon: Clock,
+          shadow: 'shadow-orange-500/50'
+        };
+      case 'error':
+        return {
+          gradient: 'from-red-500 to-rose-500',
+          icon: AlertCircle,
+          shadow: 'shadow-red-500/50'
+        };
+    }
+  };
+
   return (
     <div className="w-full max-w-md mx-auto">
       {/* Glass Card */}
@@ -117,6 +151,56 @@ export function LoginForm({ primaryColor = '#f97316', secondaryColor = '#ef4444'
         />
 
         <div className="relative bg-black/80 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
+          {/* Notification Banner - Sticky at top inside card */}
+          {notification && (
+            <div className="mb-6 -mt-2 -mx-2">
+              {(() => {
+                const styles = getNotificationStyles(notification.type);
+                const Icon = styles.icon;
+                return (
+                  <div className={cn(
+                    "relative bg-gradient-to-r",
+                    styles.gradient,
+                    "rounded-xl p-4 shadow-lg",
+                    styles.shadow,
+                    "border-2 border-white/20",
+                    "backdrop-blur-sm"
+                  )}>
+                    {/* Racing stripes decoration */}
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+
+                    <button
+                      onClick={onDismissNotification}
+                      className="absolute top-2 right-2 p-1.5 hover:bg-white/20 rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
+                      aria-label="Cerrar notificación"
+                    >
+                      <X className="w-4 h-4 text-white" />
+                    </button>
+
+                    <div className="flex items-start gap-3 pr-6">
+                      <div className="flex-shrink-0 mt-0.5">
+                        <Icon className="w-6 h-6 text-white drop-shadow-lg" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-bold text-white text-base leading-tight drop-shadow-md">
+                          {notification.title}
+                        </p>
+                        <p className="text-white/95 text-sm mt-1.5 leading-snug">
+                          {notification.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Decorative corner accents */}
+                    <div className="absolute top-3 left-3 w-3 h-3 border-t-2 border-l-2 border-white/30 rounded-tl-sm" />
+                    <div className="absolute bottom-3 right-3 w-3 h-3 border-b-2 border-r-2 border-white/30 rounded-br-sm" />
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
           {/* Header with Logo */}
           <div className="text-center mb-8">
             <div
