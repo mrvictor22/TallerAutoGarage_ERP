@@ -112,7 +112,15 @@
     "workshop": "Taller",
     "orderStates": "Estados de Orden",
     "workTypes": "Tipos de Trabajo",
-    "taxes": "Impuestos"
+    "taxes": "Impuestos",
+    "myAccount": "Mi Cuenta",
+    "accountInfo": "Información de la Cuenta",
+    "fullName": "Nombre Completo",
+    "role": "Rol",
+    "currentEmail": "Correo actual",
+    "newEmail": "Nuevo Correo Electrónico",
+    "changeEmail": "Solicitar Cambio de Correo",
+    "emailConfirmationSent": "Hemos enviado un enlace de confirmación a tu nuevo correo"
   },
   "common": {
     "save": "Guardar",

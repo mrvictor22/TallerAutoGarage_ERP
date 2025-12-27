@@ -87,7 +87,7 @@ export function ConfigurationContent() {
   const queryClient = useQueryClient();
   const { isAdmin, isSuperAdmin, user } = useAuthStore();
   const { refetch: refetchWorkshopConfig } = useWorkshopConfig();
-  const [activeTab, setActiveTab] = useState('general');
+  const [activeTab, setActiveTab] = useState('mi-cuenta');
 
   // User management state
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
@@ -117,6 +117,10 @@ export function ConfigurationContent() {
   const [configFormData, setConfigFormData] = useState<Partial<WorkshopConfig>>({});
   const [showWhatsAppToken, setShowWhatsAppToken] = useState(false);
   const [isEditingConfig, setIsEditingConfig] = useState(false);
+
+  // Email change state
+  const [newEmail, setNewEmail] = useState('');
+  const [isChangingEmail, setIsChangingEmail] = useState(false);
 
   // Check admin permissions
   useEffect(() => {
@@ -688,6 +692,37 @@ export function ConfigurationContent() {
     updateConfigMutation.mutate(configFormData);
   };
 
+  const handleChangeEmail = async () => {
+    if (!newEmail) {
+      toast.error('Por favor ingresa un nuevo correo electrónico');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      toast.error('Por favor ingresa un correo electrónico válido');
+      return;
+    }
+
+    if (newEmail === user?.email) {
+      toast.error('El nuevo correo es igual al actual');
+      return;
+    }
+
+    setIsChangingEmail(true);
+    const { updateEmail } = useAuthStore.getState();
+    const result = await updateEmail(newEmail);
+
+    if (result.success) {
+      toast.success('Hemos enviado un enlace de confirmación a tu nuevo correo');
+      setNewEmail('');
+    } else {
+      toast.error(result.error || 'Error al cambiar el correo electrónico');
+    }
+    setIsChangingEmail(false);
+  };
+
   if (configLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -721,6 +756,10 @@ export function ConfigurationContent() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
+          <TabsTrigger value="mi-cuenta">
+            <Mail className="mr-2 h-4 w-4" />
+            Mi Cuenta
+          </TabsTrigger>
           <TabsTrigger value="general">
             <Building className="mr-2 h-4 w-4" />
             General
@@ -753,6 +792,111 @@ export function ConfigurationContent() {
             </TabsTrigger>
           )}
         </TabsList>
+
+        {/* Mi Cuenta Tab */}
+        <TabsContent value="mi-cuenta" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                Información de la Cuenta
+              </CardTitle>
+              <CardDescription>
+                Administra tu información personal y configuración de cuenta
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* User info */}
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-base font-medium">Nombre Completo</Label>
+                  <p className="text-sm text-muted-foreground mt-1">{user?.full_name}</p>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <Label className="text-base font-medium">Rol</Label>
+                  <div className="mt-2">
+                    <Badge variant="default">
+                      {user?.role === 'admin' && 'Administrador'}
+                      {user?.role === 'reception' && 'Recepción'}
+                      {user?.role === 'mechanic_lead' && 'Jefe de Mecánicos'}
+                      {user?.role === 'technician' && 'Técnico'}
+                    </Badge>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Change Email Section */}
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-base font-medium">Correo Electrónico</Label>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Correo actual: <span className="font-medium text-foreground">{user?.email}</span>
+                    </p>
+                  </div>
+
+                  <div className="space-y-3 pt-2">
+                    <div>
+                      <Label htmlFor="new-email">Nuevo Correo Electrónico</Label>
+                      <Input
+                        id="new-email"
+                        type="email"
+                        placeholder="nuevo@ejemplo.com"
+                        value={newEmail}
+                        onChange={(e) => setNewEmail(e.target.value)}
+                        disabled={isChangingEmail}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Se enviará un enlace de confirmación al nuevo correo
+                      </p>
+                    </div>
+
+                    <Button
+                      onClick={handleChangeEmail}
+                      disabled={isChangingEmail || !newEmail}
+                      className="w-full sm:w-auto"
+                    >
+                      {isChangingEmail ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Enviando...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="mr-2 h-4 w-4" />
+                          Solicitar Cambio de Correo
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Info Card */}
+          <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+            <CardContent className="pt-6">
+              <div className="flex gap-4">
+                <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                    Acerca del cambio de correo
+                  </p>
+                  <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                    <li>• Recibirás un correo de confirmación en tu nueva dirección</li>
+                    <li>• Deberás hacer clic en el enlace para confirmar el cambio</li>
+                    <li>• Tu correo actual seguirá activo hasta que confirmes el cambio</li>
+                    <li>• Si no confirmas el cambio, tu correo actual permanecerá sin cambios</li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* General Tab */}
         <TabsContent value="general" className="space-y-6">

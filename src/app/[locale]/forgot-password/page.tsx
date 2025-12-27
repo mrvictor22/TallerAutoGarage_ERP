@@ -1,45 +1,11 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { LoginForm } from '@/components/auth/login-form';
+import { Suspense, useState } from 'react';
+import { ForgotPasswordForm } from '@/components/auth/forgot-password-form';
 import { useWorkshopConfig } from '@/contexts/workshop-config';
-import { CheckCircle, AlertCircle, Clock, X, Loader2 } from 'lucide-react';
+import { CheckCircle, X, Loader2 } from 'lucide-react';
 
-const messages: Record<string, { title: string; description: string; type: 'success' | 'warning' | 'error' }> = {
-  'email_verified': {
-    title: 'Correo Verificado',
-    description: 'Tu correo ha sido verificado exitosamente. Tu cuenta está pendiente de aprobación por un administrador.',
-    type: 'success'
-  },
-  'pending_approval': {
-    title: 'Cuenta Pendiente de Aprobación',
-    description: 'Tu correo ha sido verificado. Un administrador debe aprobar tu cuenta antes de que puedas acceder al sistema.',
-    type: 'warning'
-  },
-  'email_updated': {
-    title: 'Correo Actualizado',
-    description: 'Tu correo electrónico ha sido actualizado exitosamente. Inicia sesión con tu nuevo correo.',
-    type: 'success'
-  },
-  'password_reset_success': {
-    title: 'Contraseña Actualizada',
-    description: 'Tu contraseña ha sido actualizada exitosamente. Ya puedes iniciar sesión.',
-    type: 'success'
-  }
-};
-
-const errorMessages: Record<string, string> = {
-  'otp_expired': 'El enlace de confirmación ha expirado. Por favor, regístrate de nuevo.',
-  'access_denied': 'Acceso denegado. El enlace puede haber expirado o ser inválido.',
-  'verification_failed': 'Error al verificar el correo. Por favor, intenta de nuevo.',
-  'exchange_failed': 'Error al procesar la autenticación.',
-  'session_failed': 'No se pudo establecer la sesión. Por favor, intenta de nuevo.',
-  'session_expired': 'Tu sesión ha expirado. Por favor, inicia sesión de nuevo.'
-};
-
-function LoginPageContent() {
-  const searchParams = useSearchParams();
+function ForgotPasswordPageContent() {
   const { config } = useWorkshopConfig();
   const primaryColor = config?.primary_color || '#f97316';
   const secondaryColor = config?.secondary_color || '#ef4444';
@@ -47,35 +13,10 @@ function LoginPageContent() {
   const [notification, setNotification] = useState<{
     title: string;
     description: string;
-    type: 'success' | 'warning' | 'error';
+    type: 'success' | 'error';
   } | null>(null);
 
-  useEffect(() => {
-    const confirmed = searchParams.get('confirmed');
-    const message = searchParams.get('message');
-    const error = searchParams.get('error');
-    const errorCode = searchParams.get('error_code');
-    const errorDescription = searchParams.get('error_description');
-
-    if (confirmed === 'true' && message && messages[message]) {
-      setNotification(messages[message]);
-      // Clean URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (error || errorCode) {
-      const errorMsg = errorMessages[errorCode || error || ''] ||
-        errorDescription?.replace(/\+/g, ' ') ||
-        'Ha ocurrido un error de autenticación';
-      setNotification({
-        title: 'Error',
-        description: errorMsg,
-        type: 'error'
-      });
-      // Clean URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, [searchParams]);
-
-  const getNotificationStyles = (type: 'success' | 'warning' | 'error') => {
+  const getNotificationStyles = (type: 'success' | 'error') => {
     switch (type) {
       case 'success':
         return {
@@ -83,17 +24,11 @@ function LoginPageContent() {
           border: 'border-green-400/50',
           icon: CheckCircle
         };
-      case 'warning':
-        return {
-          bg: `bg-gradient-to-r from-amber-500/90 to-orange-500/90`,
-          border: 'border-amber-400/50',
-          icon: Clock
-        };
       case 'error':
         return {
           bg: 'bg-red-500/90',
           border: 'border-red-400/50',
-          icon: AlertCircle
+          icon: X
         };
     }
   };
@@ -159,13 +94,13 @@ function LoginPageContent() {
       {/* Tire Track Pattern */}
       <div className="absolute bottom-0 left-0 right-0 h-32 opacity-10">
         <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-          <pattern id="tire-track-login" x="0" y="0" width="100" height="20" patternUnits="userSpaceOnUse">
+          <pattern id="tire-track-forgot" x="0" y="0" width="100" height="20" patternUnits="userSpaceOnUse">
             <rect x="0" y="8" width="30" height="4" fill={primaryColor} />
             <rect x="35" y="8" width="15" height="4" fill={primaryColor} />
             <rect x="55" y="8" width="15" height="4" fill={primaryColor} />
             <rect x="75" y="8" width="20" height="4" fill={primaryColor} />
           </pattern>
-          <rect width="100%" height="100%" fill="url(#tire-track-login)" />
+          <rect width="100%" height="100%" fill="url(#tire-track-forgot)" />
         </svg>
       </div>
 
@@ -208,7 +143,11 @@ function LoginPageContent() {
 
       {/* Content */}
       <div className="relative z-10 w-full px-4 py-8">
-        <LoginForm primaryColor={primaryColor} secondaryColor={secondaryColor} />
+        <ForgotPasswordForm
+          primaryColor={primaryColor}
+          secondaryColor={secondaryColor}
+          onNotification={setNotification}
+        />
       </div>
 
       {/* Custom CSS for animations */}
@@ -299,10 +238,10 @@ function LoadingFallback() {
   );
 }
 
-export default function LoginPage() {
+export default function ForgotPasswordPage() {
   return (
     <Suspense fallback={<LoadingFallback />}>
-      <LoginPageContent />
+      <ForgotPasswordPageContent />
     </Suspense>
   );
 }

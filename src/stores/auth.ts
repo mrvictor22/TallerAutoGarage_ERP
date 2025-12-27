@@ -20,6 +20,10 @@ interface AuthState {
   isAdmin: () => boolean
   isSuperAdmin: () => boolean
   clearJustLoggedIn: () => void
+  resetPasswordForEmail: (email: string) => Promise<{ success: boolean; error?: string }>
+  updatePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>
+  updateEmail: (newEmail: string) => Promise<{ success: boolean; error?: string }>
+  signInWithMagicLink: (email: string) => Promise<{ success: boolean; error?: string }>
 }
 
 // Role-based permissions configuration
@@ -257,6 +261,114 @@ export const useAuthStore = create<AuthState>()(
 
       clearJustLoggedIn: () => {
         set({ justLoggedIn: false })
+      },
+
+      resetPasswordForEmail: async (email: string) => {
+        set({ isLoading: true })
+        const supabase = createClient()
+
+        // Determine the base URL for email redirect
+        const baseUrl = typeof window !== 'undefined'
+          ? window.location.origin
+          : process.env.NEXT_PUBLIC_SITE_URL || 'https://tallerautogarage.apexcodelabs.com'
+
+        try {
+          const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${baseUrl}/auth/callback`
+          })
+
+          if (error) {
+            set({ isLoading: false })
+            return { success: false, error: 'Error al enviar correo de recuperación: ' + error.message }
+          }
+
+          set({ isLoading: false })
+          return { success: true }
+        } catch (error) {
+          set({ isLoading: false })
+          return { success: false, error: 'Error de conexión al enviar correo de recuperación' }
+        }
+      },
+
+      updatePassword: async (newPassword: string) => {
+        set({ isLoading: true })
+        const supabase = createClient()
+
+        try {
+          const { error } = await supabase.auth.updateUser({
+            password: newPassword
+          })
+
+          if (error) {
+            set({ isLoading: false })
+            return { success: false, error: 'Error al actualizar contraseña: ' + error.message }
+          }
+
+          set({ isLoading: false })
+          return { success: true }
+        } catch (error) {
+          set({ isLoading: false })
+          return { success: false, error: 'Error de conexión al actualizar contraseña' }
+        }
+      },
+
+      updateEmail: async (newEmail: string) => {
+        set({ isLoading: true })
+        const supabase = createClient()
+
+        // Determine the base URL for email redirect
+        const baseUrl = typeof window !== 'undefined'
+          ? window.location.origin
+          : process.env.NEXT_PUBLIC_SITE_URL || 'https://tallerautogarage.apexcodelabs.com'
+
+        try {
+          const { error } = await supabase.auth.updateUser({
+            email: newEmail
+          }, {
+            emailRedirectTo: `${baseUrl}/auth/callback`
+          })
+
+          if (error) {
+            set({ isLoading: false })
+            return { success: false, error: 'Error al actualizar email: ' + error.message }
+          }
+
+          set({ isLoading: false })
+          return { success: true }
+        } catch (error) {
+          set({ isLoading: false })
+          return { success: false, error: 'Error de conexión al actualizar email' }
+        }
+      },
+
+      signInWithMagicLink: async (email: string) => {
+        set({ isLoading: true })
+        const supabase = createClient()
+
+        // Determine the base URL for email redirect
+        const baseUrl = typeof window !== 'undefined'
+          ? window.location.origin
+          : process.env.NEXT_PUBLIC_SITE_URL || 'https://tallerautogarage.apexcodelabs.com'
+
+        try {
+          const { error } = await supabase.auth.signInWithOtp({
+            email,
+            options: {
+              emailRedirectTo: `${baseUrl}/auth/callback`
+            }
+          })
+
+          if (error) {
+            set({ isLoading: false })
+            return { success: false, error: 'Error al enviar enlace mágico: ' + error.message }
+          }
+
+          set({ isLoading: false })
+          return { success: true }
+        } catch (error) {
+          set({ isLoading: false })
+          return { success: false, error: 'Error de conexión al enviar enlace mágico' }
+        }
       }
     }),
     {

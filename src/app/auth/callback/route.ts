@@ -26,7 +26,7 @@ export async function GET(request: Request) {
   if (token_hash && type) {
     const { error: verifyError } = await supabase.auth.verifyOtp({
       token_hash,
-      type: type as 'signup' | 'email' | 'recovery' | 'invite'
+      type: type as 'signup' | 'email' | 'recovery' | 'invite' | 'magiclink' | 'email_change'
     })
 
     if (verifyError) {
@@ -37,12 +37,68 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${origin}/login?${errorParams.toString()}`)
     }
 
-    // Email confirmed - redirect to login with success message
-    const successParams = new URLSearchParams({
-      confirmed: 'true',
-      message: 'email_verified'
-    })
-    return NextResponse.redirect(`${origin}/login?${successParams.toString()}`)
+    // Handle different auth flow types
+    switch (type) {
+      case 'recovery':
+        // Password reset flow - redirect to reset password page
+        return NextResponse.redirect(`${origin}/es/reset-password`)
+
+      case 'magiclink':
+        // Magic link login - verify user is approved and redirect
+        const { data: { session: magicSession } } = await supabase.auth.getSession()
+
+        if (magicSession?.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('is_approved, email')
+            .eq('id', magicSession.user.id)
+            .single() as { data: { is_approved: boolean; email: string } | null }
+
+          const isSuperAdmin = profile?.email === 'vc70383@hotmail.com'
+
+          if (profile?.is_approved || isSuperAdmin) {
+            // Approved user - go to dashboard
+            return NextResponse.redirect(`${origin}/es/dashboard`)
+          } else {
+            // Not approved - sign out and show pending message
+            await supabase.auth.signOut()
+            const successParams = new URLSearchParams({
+              confirmed: 'true',
+              message: 'pending_approval',
+              error_description: 'Tu cuenta está pendiente de aprobación. El administrador debe aprobar tu acceso.'
+            })
+            return NextResponse.redirect(`${origin}/login?${successParams.toString()}`)
+          }
+        }
+        // If no session, redirect to login with error
+        return NextResponse.redirect(`${origin}/login?error=session_failed&error_description=No se pudo establecer la sesión`)
+
+      case 'email_change':
+        // Email change confirmation - redirect to login with success message
+        const successParams = new URLSearchParams({
+          confirmed: 'true',
+          message: 'email_updated',
+          error_description: 'Tu correo electrónico ha sido actualizado exitosamente. Inicia sesión con tu nuevo correo.'
+        })
+        return NextResponse.redirect(`${origin}/login?${successParams.toString()}`)
+
+      case 'signup':
+        // Email confirmation after signup - redirect to login with success message
+        const signupParams = new URLSearchParams({
+          confirmed: 'true',
+          message: 'email_verified',
+          error_description: 'Tu correo ha sido verificado. Ahora puedes iniciar sesión.'
+        })
+        return NextResponse.redirect(`${origin}/login?${signupParams.toString()}`)
+
+      default:
+        // Default case - email verified
+        const defaultParams = new URLSearchParams({
+          confirmed: 'true',
+          message: 'email_verified'
+        })
+        return NextResponse.redirect(`${origin}/login?${defaultParams.toString()}`)
+    }
   }
 
   // Handle code exchange (PKCE flow)
@@ -75,13 +131,14 @@ export async function GET(request: Request) {
         await supabase.auth.signOut()
         const successParams = new URLSearchParams({
           confirmed: 'true',
-          message: 'pending_approval'
+          message: 'pending_approval',
+          error_description: 'Tu cuenta está pendiente de aprobación. El administrador debe aprobar tu acceso.'
         })
         return NextResponse.redirect(`${origin}/login?${successParams.toString()}`)
       }
     }
   }
 
-  // No code provided, redirect to login
+  // No code or token provided, redirect to login
   return NextResponse.redirect(`${origin}/login`)
 }

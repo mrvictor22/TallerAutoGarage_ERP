@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,9 +25,14 @@ export function LoginForm({ primaryColor = '#f97316', secondaryColor = '#ef4444'
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [showMagicLink, setShowMagicLink] = useState(false);
+  const [magicLinkEmail, setMagicLinkEmail] = useState('');
+  const [magicLinkLoading, setMagicLinkLoading] = useState(false);
+  const [magicLinkError, setMagicLinkError] = useState('');
+  const [magicLinkSuccess, setMagicLinkSuccess] = useState('');
 
   const router = useRouter();
-  const { login, signUp } = useAuthStore();
+  const { login, signUp, signInWithMagicLink } = useAuthStore();
   const { config } = useWorkshopConfig();
   const workshopName = config?.name || 'Taller Pro';
 
@@ -72,6 +78,24 @@ export function LoginForm({ primaryColor = '#f97316', secondaryColor = '#ef4444'
     }
 
     setIsLoading(false);
+  };
+
+  const handleMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMagicLinkLoading(true);
+    setMagicLinkError('');
+    setMagicLinkSuccess('');
+
+    const result = await signInWithMagicLink(magicLinkEmail);
+
+    if (result.success) {
+      setMagicLinkSuccess('Hemos enviado un enlace de acceso a tu correo');
+      setMagicLinkEmail('');
+    } else {
+      setMagicLinkError(result.error || 'Error al enviar enlace de acceso');
+    }
+
+    setMagicLinkLoading(false);
   };
 
   const gradientStyle = {
@@ -222,9 +246,20 @@ export function LoginForm({ primaryColor = '#f97316', secondaryColor = '#ef4444'
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-gray-300 text-sm font-medium">
-                Contraseña
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="text-gray-300 text-sm font-medium">
+                  Contraseña
+                </Label>
+                {mode === 'login' && (
+                  <Link
+                    href="/es/forgot-password"
+                    className="text-xs font-medium transition-colors hover:text-white"
+                    style={{ color: primaryColor }}
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </Link>
+                )}
+              </div>
               <div className="relative group">
                 <div
                   className="absolute inset-0 rounded-lg blur opacity-0 group-focus-within:opacity-50 transition-opacity"
@@ -286,6 +321,104 @@ export function LoginForm({ primaryColor = '#f97316', secondaryColor = '#ef4444'
               <br />
               Contacta al administrador para cambiar tu rol.
             </p>
+          )}
+
+          {/* Divider with "o" */}
+          <div className="flex items-center gap-3 my-6">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">o</span>
+            <div className="flex-1 h-px bg-white/10" />
+          </div>
+
+          {/* Magic Link Section */}
+          {!showMagicLink ? (
+            <button
+              type="button"
+              onClick={() => {
+                setShowMagicLink(true);
+                setMagicLinkError('');
+                setMagicLinkSuccess('');
+              }}
+              className="w-full text-center text-sm font-medium text-gray-400 hover:text-white transition-colors"
+            >
+              Acceso sin contraseña
+            </button>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-300">Acceso sin contraseña</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMagicLink(false);
+                    setMagicLinkEmail('');
+                    setMagicLinkError('');
+                    setMagicLinkSuccess('');
+                  }}
+                  className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+
+              <form onSubmit={handleMagicLink} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="magic-link-email" className="text-gray-300 text-sm font-medium">
+                    Correo Electrónico
+                  </Label>
+                  <div className="relative group">
+                    <div
+                      className="absolute inset-0 rounded-lg blur opacity-0 group-focus-within:opacity-50 transition-opacity"
+                      style={gradientStyle}
+                    />
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500 group-focus-within:transition-colors" />
+                      <Input
+                        id="magic-link-email"
+                        type="email"
+                        placeholder="tu@email.com"
+                        value={magicLinkEmail}
+                        onChange={(e) => setMagicLinkEmail(e.target.value)}
+                        className="pl-11 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-500 rounded-lg"
+                        required
+                        disabled={magicLinkLoading}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {magicLinkError && (
+                  <Alert variant="destructive" className="bg-red-500/10 border-red-500/50 text-red-400">
+                    <AlertDescription>{magicLinkError}</AlertDescription>
+                  </Alert>
+                )}
+
+                {magicLinkSuccess && (
+                  <Alert className="bg-green-500/10 border-green-500/50 text-green-400">
+                    <AlertDescription>{magicLinkSuccess}</AlertDescription>
+                  </Alert>
+                )}
+
+                <Button
+                  type="submit"
+                  disabled={magicLinkLoading}
+                  className="w-full h-12 text-white font-bold text-base rounded-lg shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                  style={{
+                    background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`,
+                    boxShadow: `0 10px 25px -5px ${primaryColor}40`
+                  }}
+                >
+                  {magicLinkLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <>
+                      <Mail className="mr-2 h-5 w-5" />
+                      Enviar enlace de acceso
+                    </>
+                  )}
+                </Button>
+              </form>
+            </div>
           )}
         </div>
       </div>
