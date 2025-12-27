@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { LoginForm } from '@/components/auth/login-form';
 import { useWorkshopConfig } from '@/contexts/workshop-config';
@@ -43,6 +43,7 @@ function LoginPageContent() {
   const { config } = useWorkshopConfig();
   const primaryColor = config?.primary_color || '#f97316';
   const secondaryColor = config?.secondary_color || '#ef4444';
+  const hasProcessedParams = useRef(false);
 
   const [notification, setNotification] = useState<{
     title: string;
@@ -50,7 +51,11 @@ function LoginPageContent() {
     type: 'success' | 'warning' | 'error';
   } | null>(null);
 
+  // Process URL params on mount only
   useEffect(() => {
+    // Prevent processing more than once
+    if (hasProcessedParams.current) return;
+
     const confirmed = searchParams.get('confirmed');
     const message = searchParams.get('message');
     const error = searchParams.get('error');
@@ -58,10 +63,14 @@ function LoginPageContent() {
     const errorDescription = searchParams.get('error_description');
 
     if (confirmed === 'true' && message && messages[message]) {
+      hasProcessedParams.current = true;
       setNotification(messages[message]);
-      // Clean URL
-      window.history.replaceState({}, document.title, window.location.pathname);
+      // Clean URL after a small delay to ensure state is set
+      setTimeout(() => {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }, 100);
     } else if (error || errorCode) {
+      hasProcessedParams.current = true;
       const errorMsg = errorMessages[errorCode || error || ''] ||
         errorDescription?.replace(/\+/g, ' ') ||
         'Ha ocurrido un error de autenticación';
@@ -70,8 +79,10 @@ function LoginPageContent() {
         description: errorMsg,
         type: 'error'
       });
-      // Clean URL
-      window.history.replaceState({}, document.title, window.location.pathname);
+      // Clean URL after a small delay to ensure state is set
+      setTimeout(() => {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }, 100);
     }
   }, [searchParams]);
 
