@@ -17,6 +17,7 @@ import {
   Activity,
   MessageSquare
 } from 'lucide-react';
+import { WelcomeModal } from './welcome-modal';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { TimelineEntry, WhatsAppMessage, Owner, Order } from '@/types/database';
 
@@ -171,6 +172,9 @@ export function DashboardContent() {
 
   return (
     <div className="space-y-6">
+      {/* Welcome Modal */}
+      <WelcomeModal />
+
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Panel de Control</h1>

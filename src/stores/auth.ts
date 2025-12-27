@@ -10,6 +10,7 @@ interface AuthState {
   user: Profile | null
   isAuthenticated: boolean
   isLoading: boolean
+  justLoggedIn: boolean
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string; pendingApproval?: boolean }>
   logout: () => Promise<void>
   signUp: (email: string, password: string, fullName: string, role?: UserRole) => Promise<{ success: boolean; error?: string }>
@@ -18,6 +19,7 @@ interface AuthState {
   hasRole: (role: UserRole) => boolean
   isAdmin: () => boolean
   isSuperAdmin: () => boolean
+  clearJustLoggedIn: () => void
 }
 
 // Role-based permissions configuration
@@ -61,6 +63,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
       isLoading: false,
+      justLoggedIn: false,
 
       login: async (email: string, password: string) => {
         set({ isLoading: true })
@@ -110,7 +113,8 @@ export const useAuthStore = create<AuthState>()(
             set({
               user: profile,
               isAuthenticated: true,
-              isLoading: false
+              isLoading: false,
+              justLoggedIn: true
             })
 
             return { success: true }
@@ -243,6 +247,10 @@ export const useAuthStore = create<AuthState>()(
       isSuperAdmin: () => {
         const { user } = get()
         return user?.email === SUPER_ADMIN_EMAIL
+      },
+
+      clearJustLoggedIn: () => {
+        set({ justLoggedIn: false })
       }
     }),
     {
