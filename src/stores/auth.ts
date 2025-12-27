@@ -141,6 +141,11 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true })
         const supabase = createClient()
 
+        // Determine the base URL for email redirect
+        const baseUrl = typeof window !== 'undefined'
+          ? window.location.origin
+          : process.env.NEXT_PUBLIC_SITE_URL || 'https://tallerautogarage.apexcodelabs.com'
+
         try {
           const { data, error } = await supabase.auth.signUp({
             email,
@@ -149,7 +154,8 @@ export const useAuthStore = create<AuthState>()(
               data: {
                 full_name: fullName,
                 role
-              }
+              },
+              emailRedirectTo: `${baseUrl}/auth/callback`
             }
           })
 

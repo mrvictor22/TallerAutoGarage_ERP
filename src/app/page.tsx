@@ -1,11 +1,109 @@
 'use client';
 
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Car, Zap, Gauge, Wrench, ArrowRight, Loader2 } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Car, Zap, Gauge, Wrench, ArrowRight, Loader2, AlertCircle, CheckCircle, X } from 'lucide-react';
 import { useWorkshopConfig } from '@/contexts/workshop-config';
+import { createClient } from '@/lib/supabase/client';
+import { useAuthStore } from '@/stores/auth';
 
-export default function RootPage() {
+const errorMessages: Record<string, string> = {
+  'otp_expired': 'El enlace de confirmación ha expirado. Por favor, solicita un nuevo enlace.',
+  'access_denied': 'Acceso denegado. El enlace puede haber expirado o ser inválido.',
+  'invalid_token': 'Token inválido. Por favor, solicita un nuevo enlace de confirmación.',
+};
+
+function RootPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { config, isLoading } = useWorkshopConfig();
+  const { getCurrentUser } = useAuthStore();
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authSuccess, setAuthSuccess] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Handle auth errors from URL params
+  useEffect(() => {
+    const error = searchParams.get('error');
+    const errorCode = searchParams.get('error_code');
+    const errorDescription = searchParams.get('error_description');
+
+    if (error || errorCode) {
+      const message = errorMessages[errorCode || ''] ||
+        errorDescription?.replace(/\+/g, ' ') ||
+        'Ha ocurrido un error de autenticación';
+      setAuthError(message);
+    }
+  }, [searchParams]);
+
+  // Handle hash parameters (tokens from email confirmation)
+  useEffect(() => {
+    const handleHashParams = async () => {
+      if (typeof window === 'undefined') return;
+
+      const hash = window.location.hash;
+      if (!hash) return;
+
+      // Parse hash parameters
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      const type = params.get('type');
+      const errorInHash = params.get('error');
+      const errorDescInHash = params.get('error_description');
+
+      if (errorInHash) {
+        const message = errorMessages[errorInHash] ||
+          errorDescInHash?.replace(/\+/g, ' ') ||
+          'Ha ocurrido un error de autenticación';
+        setAuthError(message);
+        // Clean the URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+
+      if (accessToken && refreshToken) {
+        setIsProcessing(true);
+        setAuthSuccess('Confirmando tu cuenta...');
+
+        try {
+          const supabase = createClient();
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          });
+
+          if (error) {
+            setAuthError('Error al confirmar la cuenta: ' + error.message);
+            setAuthSuccess(null);
+          } else {
+            // Update auth store
+            await getCurrentUser();
+
+            if (type === 'signup' || type === 'email') {
+              setAuthSuccess('¡Cuenta confirmada exitosamente! Redirigiendo al dashboard...');
+            } else {
+              setAuthSuccess('¡Sesión iniciada! Redirigiendo...');
+            }
+
+            // Clean the URL and redirect
+            window.history.replaceState({}, document.title, window.location.pathname);
+            setTimeout(() => {
+              router.push('/es/dashboard');
+            }, 1500);
+          }
+        } catch {
+          setAuthError('Error al procesar la confirmación');
+          setAuthSuccess(null);
+        } finally {
+          setIsProcessing(false);
+        }
+      }
+    };
+
+    handleHashParams();
+  }, [router, getCurrentUser]);
   const workshopName = config?.name || 'Taller Pro';
   const primaryColor = config?.primary_color || '#f97316';
   const secondaryColor = config?.secondary_color || '#ef4444';
@@ -56,6 +154,53 @@ export default function RootPage() {
 
       {/* Radial Gradient Overlay */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.8)_100%)]" />
+
+      {/* Auth Status Alerts */}
+      {(authError || authSuccess || isProcessing) && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4">
+          {authError && (
+            <div className="relative bg-red-500/90 backdrop-blur-sm text-white rounded-xl p-4 shadow-2xl border border-red-400/50 animate-in fade-in slide-in-from-top-4">
+              <button
+                onClick={() => setAuthError(null)}
+                className="absolute top-2 right-2 p-1 hover:bg-white/20 rounded-full transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-6 h-6 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold">Error de Autenticación</p>
+                  <p className="text-sm text-red-100 mt-1">{authError}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {authSuccess && (
+            <div
+              className="relative backdrop-blur-sm text-white rounded-xl p-4 shadow-2xl border animate-in fade-in slide-in-from-top-4"
+              style={{
+                backgroundColor: `${primaryColor}E6`,
+                borderColor: `${primaryColor}80`
+              }}
+            >
+              <div className="flex items-start gap-3">
+                {isProcessing ? (
+                  <Loader2 className="w-6 h-6 flex-shrink-0 mt-0.5 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-6 h-6 flex-shrink-0 mt-0.5" />
+                )}
+                <div>
+                  <p className="font-semibold">
+                    {isProcessing ? 'Procesando...' : '¡Éxito!'}
+                  </p>
+                  <p className="text-sm opacity-90 mt-1">{authSuccess}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Content */}
       <div className="relative z-10 w-full max-w-4xl mx-auto px-4 py-12">
@@ -236,5 +381,22 @@ export default function RootPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+// Loading fallback for Suspense
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-black">
+      <Loader2 className="w-12 h-12 animate-spin text-orange-500" />
+    </div>
+  );
+}
+
+export default function RootPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <RootPageContent />
+    </Suspense>
   );
 }
