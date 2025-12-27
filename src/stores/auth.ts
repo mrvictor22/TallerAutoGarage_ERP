@@ -167,10 +167,10 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: false })
 
           if (data.user) {
-            // Registration successful - user needs to be approved
+            // Registration successful - email verification needed
             return {
               success: true,
-              error: 'Tu cuenta ha sido creada. Un administrador debe aprobar tu solicitud antes de poder acceder al sistema.'
+              error: 'Hemos enviado un correo de verificación a tu email. Por favor, revisa tu bandeja de entrada y haz clic en el enlace para activar tu cuenta.'
             }
           }
 
