@@ -1240,6 +1240,42 @@ export const usersApi = {
     }
 
     return createSuccessResponse(null, 'Solicitud de usuario rechazada')
+  },
+
+  deleteUser: async (id: string): Promise<ApiResponse<null>> => {
+    const supabase = createClient()
+
+    // Delete the profile first
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', id)
+
+    if (profileError) {
+      return createErrorResponse(profileError.message)
+    }
+
+    // Note: To fully delete from auth.users, you need admin API or Supabase dashboard
+    // The profile deletion is sufficient for blocking access
+
+    return createSuccessResponse(null, 'Usuario eliminado exitosamente')
+  },
+
+  updateUserRole: async (id: string, role: Database['public']['Enums']['user_role']): Promise<ApiResponse<Profile>> => {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ role, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      return createErrorResponse(error.message)
+    }
+
+    return createSuccessResponse(data, 'Rol actualizado exitosamente')
   }
 }
 

@@ -329,6 +329,37 @@ export function ConfigurationContent() {
     }
   });
 
+  // Delete user mutation (super admin only)
+  const deleteUserMutation = useMutation({
+    mutationFn: (userId: string) => usersApi.deleteUser(userId),
+    onSuccess: (response) => {
+      if (response.success) {
+        toast.success(response.message || 'Usuario eliminado');
+        queryClient.invalidateQueries({ queryKey: ['users'] });
+        setUserToDelete(null);
+      } else {
+        toast.error(response.error || 'Error al eliminar usuario');
+      }
+    }
+  });
+
+  // Update user role mutation (super admin only)
+  const updateUserRoleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: 'admin' | 'reception' | 'mechanic_lead' | 'technician' }) =>
+      usersApi.updateUserRole(userId, role),
+    onSuccess: (response) => {
+      if (response.success) {
+        toast.success(response.message || 'Rol actualizado');
+        queryClient.invalidateQueries({ queryKey: ['users'] });
+      } else {
+        toast.error(response.error || 'Error al actualizar rol');
+      }
+    }
+  });
+
+  // State for user deletion confirmation
+  const [userToDelete, setUserToDelete] = useState<Profile | null>(null);
+
   // User table columns
   const userColumns: ColumnDef<Profile>[] = [
     {
@@ -413,15 +444,63 @@ export function ConfigurationContent() {
       id: 'actions',
       header: 'Acciones',
       cell: ({ row }) => {
-        const user = row.original;
+        const tableUser = row.original;
+        const isSelf = tableUser.id === user?.id;
+        const canManage = isSuperAdmin() && !isSelf;
+
         return (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleEditUser(user)}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* Role selector - only super admin can change roles */}
+            {isSuperAdmin() && !isSelf && (
+              <Select
+                value={tableUser.role}
+                onValueChange={(value) => {
+                  updateUserRoleMutation.mutate({
+                    userId: tableUser.id,
+                    role: value as 'admin' | 'reception' | 'mechanic_lead' | 'technician'
+                  });
+                }}
+              >
+                <SelectTrigger className="w-[140px] h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                  <SelectItem value="reception">Recepción</SelectItem>
+                  <SelectItem value="mechanic_lead">Jefe Mecánicos</SelectItem>
+                  <SelectItem value="technician">Técnico</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Edit button */}
+            {canManage && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleEditUser(tableUser)}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            )}
+
+            {/* Delete button - only super admin, can't delete self */}
+            {canManage && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={() => setUserToDelete(tableUser)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+
+            {/* Show badge if it's the current user */}
+            {isSelf && (
+              <Badge variant="outline" className="text-xs">Tú</Badge>
+            )}
+          </div>
         );
       },
     },
@@ -1643,6 +1722,51 @@ export function ConfigurationContent() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete User Confirmation - Super Admin Only */}
+      <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="h-5 w-5" />
+              Eliminar Usuario
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>¿Estás seguro que deseas eliminar a este usuario?</p>
+              {userToDelete && (
+                <div className="bg-muted p-3 rounded-lg mt-2">
+                  <p className="font-medium">{userToDelete.full_name}</p>
+                  <p className="text-sm text-muted-foreground">{userToDelete.email}</p>
+                </div>
+              )}
+              <p className="text-red-600 font-medium mt-2">
+                Esta acción no se puede deshacer.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (userToDelete) {
+                  deleteUserMutation.mutate(userToDelete.id);
+                }
+              }}
+              className="bg-red-600 text-white hover:bg-red-700"
+              disabled={deleteUserMutation.isPending}
+            >
+              {deleteUserMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                'Eliminar Usuario'
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
