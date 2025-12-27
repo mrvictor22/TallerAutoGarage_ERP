@@ -89,3 +89,16 @@ When querying related data with ambiguous foreign keys, use explicit hints:
   author:profiles!author_id(*)
 `)
 ```
+
+## Git Commit Rules
+
+- **NO incluir "Co-Authored-By"** en los commits
+- **NO incluir** la línea "Generated with Claude Code"
+- Solo incluir el mensaje del commit con su descripción
+- Formato simple:
+  ```
+  tipo: descripción breve
+
+  - Detalle 1
+  - Detalle 2
+  ```

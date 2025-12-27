@@ -238,10 +238,10 @@ export function ConfigurationContent() {
   const toggleUserStatusMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
       usersApi.toggleUserStatus(id, isActive),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       if (response.success) {
         toast.success(response.message);
-        queryClient.invalidateQueries({ queryKey: ['users'] });
+        await queryClient.refetchQueries({ queryKey: ['users'] });
       } else {
         toast.error(response.error || 'Error al cambiar estado del usuario');
       }
@@ -305,11 +305,11 @@ export function ConfigurationContent() {
   // Approve user mutation
   const approveUserMutation = useMutation({
     mutationFn: (userId: string) => usersApi.approveUser(userId, user?.id || ''),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       if (response.success) {
         toast.success(response.message || 'Usuario aprobado exitosamente');
-        queryClient.invalidateQueries({ queryKey: ['pending-approvals'] });
-        queryClient.invalidateQueries({ queryKey: ['users'] });
+        await queryClient.refetchQueries({ queryKey: ['pending-approvals'] });
+        await queryClient.refetchQueries({ queryKey: ['users'] });
       } else {
         toast.error(response.error || 'Error al aprobar usuario');
       }
@@ -319,10 +319,10 @@ export function ConfigurationContent() {
   // Reject user mutation
   const rejectUserMutation = useMutation({
     mutationFn: (userId: string) => usersApi.rejectUser(userId),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       if (response.success) {
         toast.success(response.message || 'Solicitud rechazada');
-        queryClient.invalidateQueries({ queryKey: ['pending-approvals'] });
+        await queryClient.refetchQueries({ queryKey: ['pending-approvals'] });
       } else {
         toast.error(response.error || 'Error al rechazar solicitud');
       }
@@ -332,11 +332,13 @@ export function ConfigurationContent() {
   // Delete user mutation (super admin only)
   const deleteUserMutation = useMutation({
     mutationFn: (userId: string) => usersApi.deleteUser(userId),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       if (response.success) {
         toast.success(response.message || 'Usuario eliminado');
-        queryClient.invalidateQueries({ queryKey: ['users'] });
         setUserToDelete(null);
+        // Force immediate refetch
+        await queryClient.refetchQueries({ queryKey: ['users'] });
+        await queryClient.refetchQueries({ queryKey: ['pending-approvals'] });
       } else {
         toast.error(response.error || 'Error al eliminar usuario');
       }
@@ -347,10 +349,11 @@ export function ConfigurationContent() {
   const updateUserRoleMutation = useMutation({
     mutationFn: ({ userId, role }: { userId: string; role: 'admin' | 'reception' | 'mechanic_lead' | 'technician' }) =>
       usersApi.updateUserRole(userId, role),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       if (response.success) {
         toast.success(response.message || 'Rol actualizado');
-        queryClient.invalidateQueries({ queryKey: ['users'] });
+        // Force immediate refetch
+        await queryClient.refetchQueries({ queryKey: ['users'] });
       } else {
         toast.error(response.error || 'Error al actualizar rol');
       }
