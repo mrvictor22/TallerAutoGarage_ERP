@@ -17,7 +17,7 @@ export async function GET(request: Request) {
     if (error) errorParams.set('error', error)
     if (errorCode) errorParams.set('error_code', errorCode)
     if (errorDescription) errorParams.set('error_description', errorDescription)
-    return NextResponse.redirect(`${origin}/login?${errorParams.toString()}`)
+    return NextResponse.redirect(`${origin}/es/login?${errorParams.toString()}`)
   }
 
   const supabase = await createClient()
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
         error: 'verification_failed',
         error_description: verifyError.message
       })
-      return NextResponse.redirect(`${origin}/login?${errorParams.toString()}`)
+      return NextResponse.redirect(`${origin}/es/login?${errorParams.toString()}`)
     }
 
     // Handle different auth flow types
@@ -67,11 +67,11 @@ export async function GET(request: Request) {
               message: 'pending_approval',
               error_description: 'Tu cuenta está pendiente de aprobación. El administrador debe aprobar tu acceso.'
             })
-            return NextResponse.redirect(`${origin}/login?${successParams.toString()}`)
+            return NextResponse.redirect(`${origin}/es/login?${successParams.toString()}`)
           }
         }
         // If no session, redirect to login with error
-        return NextResponse.redirect(`${origin}/login?error=session_failed&error_description=No se pudo establecer la sesión`)
+        return NextResponse.redirect(`${origin}/es/login?error=session_failed&error_description=No se pudo establecer la sesión`)
 
       case 'email_change':
         // Email change confirmation - redirect to login with success message
@@ -80,7 +80,7 @@ export async function GET(request: Request) {
           message: 'email_updated',
           error_description: 'Tu correo electrónico ha sido actualizado exitosamente. Inicia sesión con tu nuevo correo.'
         })
-        return NextResponse.redirect(`${origin}/login?${successParams.toString()}`)
+        return NextResponse.redirect(`${origin}/es/login?${successParams.toString()}`)
 
       case 'signup':
         // Email confirmation after signup - redirect to login with success message
@@ -89,7 +89,7 @@ export async function GET(request: Request) {
           message: 'email_verified',
           error_description: 'Tu correo ha sido verificado. Ahora puedes iniciar sesión.'
         })
-        return NextResponse.redirect(`${origin}/login?${signupParams.toString()}`)
+        return NextResponse.redirect(`${origin}/es/login?${signupParams.toString()}`)
 
       default:
         // Default case - email verified
@@ -97,7 +97,7 @@ export async function GET(request: Request) {
           confirmed: 'true',
           message: 'email_verified'
         })
-        return NextResponse.redirect(`${origin}/login?${defaultParams.toString()}`)
+        return NextResponse.redirect(`${origin}/es/login?${defaultParams.toString()}`)
     }
   }
 
@@ -110,7 +110,7 @@ export async function GET(request: Request) {
         error: 'exchange_failed',
         error_description: exchangeError.message
       })
-      return NextResponse.redirect(`${origin}/login?${errorParams.toString()}`)
+      return NextResponse.redirect(`${origin}/es/login?${errorParams.toString()}`)
     }
 
     // Check if user is approved
@@ -134,11 +134,11 @@ export async function GET(request: Request) {
           message: 'pending_approval',
           error_description: 'Tu cuenta está pendiente de aprobación. El administrador debe aprobar tu acceso.'
         })
-        return NextResponse.redirect(`${origin}/login?${successParams.toString()}`)
+        return NextResponse.redirect(`${origin}/es/login?${successParams.toString()}`)
       }
     }
   }
 
   // No code or token provided, redirect to login
-  return NextResponse.redirect(`${origin}/login`)
+  return NextResponse.redirect(`${origin}/es/login`)
 }

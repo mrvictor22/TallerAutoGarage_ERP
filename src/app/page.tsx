@@ -300,7 +300,7 @@ function RootPageContent() {
                 style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor}, ${primaryColor})` }}
               />
               <Link
-                href="/login"
+                href="/es/login"
                 className="relative inline-flex items-center gap-3 text-white font-bold text-lg px-10 py-4 rounded-xl shadow-2xl transition-all duration-300 group-hover:scale-105 active:scale-95"
                 style={{
                   background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`

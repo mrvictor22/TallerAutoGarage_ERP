@@ -55,7 +55,7 @@ export function MainLayout({ children }: MainLayoutProps) {
             Debes iniciar sesión para acceder a esta página
           </p>
           <button
-            onClick={() => router.push('/login')}
+            onClick={() => router.push('/es/login')}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
           >
             Ir a Iniciar Sesión
