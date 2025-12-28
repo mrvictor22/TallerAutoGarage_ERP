@@ -1096,52 +1096,39 @@ export const usersApi = {
 
   createUser: async (userData: {
     email: string
-    password: string
+    password?: string
     full_name: string
     role: Database['public']['Enums']['user_role']
     phone?: string | null
+    sendInvite?: boolean
   }): Promise<ApiResponse<Profile>> => {
-    const supabase = createClient()
-
-    // Create auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: userData.email,
-      password: userData.password,
-      options: {
-        data: {
+    try {
+      const response = await fetch('/api/admin/invite-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: userData.email,
           full_name: userData.full_name,
-          role: userData.role
-        }
-      }
-    })
-
-    if (authError) {
-      return createErrorResponse(authError.message)
-    }
-
-    if (!authData.user) {
-      return createErrorResponse('Error al crear usuario')
-    }
-
-    // Create or update profile with additional data
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .upsert({
-        id: authData.user.id,
-        email: userData.email,
-        full_name: userData.full_name,
-        role: userData.role,
-        phone: userData.phone,
-        is_active: true
+          role: userData.role,
+          phone: userData.phone || null,
+          sendInvite: userData.sendInvite ?? false,
+          password: userData.password
+        }),
       })
-      .select()
-      .single()
 
-    if (profileError) {
-      return createErrorResponse(profileError.message)
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        return createErrorResponse(result.error || 'Error al crear usuario')
+      }
+
+      return createSuccessResponse(result.data, result.message)
+    } catch (error) {
+      console.error('Error creating user:', error)
+      return createErrorResponse('Error de conexion al crear usuario')
     }
-
-    return createSuccessResponse(profile, 'Usuario creado exitosamente')
   },
 
   updateProfile: async (id: string, profile: Partial<Profile>): Promise<ApiResponse<Profile>> => {

@@ -74,6 +74,7 @@ interface UserFormData {
   role: 'admin' | 'reception' | 'mechanic_lead' | 'technician';
   phone?: string;
   is_active: boolean;
+  sendInvite: boolean;
 }
 
 interface CategoryFormData {
@@ -99,7 +100,8 @@ export function ConfigurationContent() {
     password: '',
     role: 'technician',
     phone: '',
-    is_active: true
+    is_active: true,
+    sendInvite: true
   });
 
   // Category management state
@@ -205,10 +207,11 @@ export function ConfigurationContent() {
   const createUserMutation = useMutation({
     mutationFn: (data: UserFormData) => usersApi.createUser({
       email: data.email,
-      password: data.password!,
+      password: data.sendInvite ? undefined : data.password,
       full_name: data.full_name,
       role: data.role,
-      phone: data.phone || null
+      phone: data.phone || null,
+      sendInvite: data.sendInvite
     }),
     onSuccess: (response) => {
       if (response.success) {
@@ -591,7 +594,8 @@ export function ConfigurationContent() {
       password: '',
       role: 'technician',
       phone: '',
-      is_active: true
+      is_active: true,
+      sendInvite: true
     });
     setSelectedUser(null);
   };
@@ -619,7 +623,8 @@ export function ConfigurationContent() {
       role: user.role,
       phone: user.phone || '',
       is_active: user.is_active,
-      password: undefined
+      password: undefined,
+      sendInvite: false
     });
     setIsEditingUser(true);
     setIsUserDialogOpen(true);
@@ -645,8 +650,9 @@ export function ConfigurationContent() {
       });
     } else {
       // Create new user
-      if (!userFormData.password || userFormData.password.length < 6) {
-        toast.error('La contraseña debe tener al menos 6 caracteres');
+      // Only require password if NOT sending invite
+      if (!userFormData.sendInvite && (!userFormData.password || userFormData.password.length < 6)) {
+        toast.error('La contrasena debe tener al menos 6 caracteres');
         return;
       }
       createUserMutation.mutate(userFormData);
@@ -1678,16 +1684,43 @@ export function ConfigurationContent() {
             </div>
 
             {!selectedUser && (
-              <div>
-                <Label htmlFor="user-password">Contraseña *</Label>
-                <Input
-                  id="user-password"
-                  type="password"
-                  value={userFormData.password || ''}
-                  onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
-                  placeholder="Mínimo 6 caracteres"
-                />
-              </div>
+              <>
+                <div className="flex items-center space-x-2 p-4 border rounded-lg bg-muted/50">
+                  <Switch
+                    id="send-invite"
+                    checked={userFormData.sendInvite}
+                    onCheckedChange={(checked) =>
+                      setUserFormData({ ...userFormData, sendInvite: checked, password: '' })
+                    }
+                  />
+                  <div className="space-y-0.5">
+                    <Label htmlFor="send-invite" className="text-sm font-medium cursor-pointer">
+                      Enviar email de invitacion
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {userFormData.sendInvite
+                        ? 'El usuario recibira un email para establecer su propia contrasena'
+                        : 'Tu defines la contrasena inicial del usuario'}
+                    </p>
+                  </div>
+                </div>
+
+                {!userFormData.sendInvite && (
+                  <div>
+                    <Label htmlFor="user-password">Contrasena *</Label>
+                    <Input
+                      id="user-password"
+                      type="password"
+                      value={userFormData.password || ''}
+                      onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
+                      placeholder="Minimo 6 caracteres"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Comparte esta contrasena de forma segura con el usuario
+                    </p>
+                  </div>
+                )}
+              </>
             )}
 
             <div>
