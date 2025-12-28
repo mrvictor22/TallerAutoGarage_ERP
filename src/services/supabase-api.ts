@@ -1165,6 +1165,24 @@ export const usersApi = {
     return createSuccessResponse(data, isActive ? 'Usuario activado' : 'Usuario desactivado')
   },
 
+  resendInvite: async (userId: string, email: string): Promise<ApiResponse<null>> => {
+    const response = await fetch('/api/admin/resend-invite', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId, email }),
+    })
+
+    const result = await response.json()
+
+    if (!result.success) {
+      return createErrorResponse(result.error || 'Error al reenviar invitación')
+    }
+
+    return createSuccessResponse(null, result.message || 'Email reenviado exitosamente')
+  },
+
   getPendingApprovals: async (): Promise<ApiResponse<Profile[]>> => {
     const supabase = createClient()
 

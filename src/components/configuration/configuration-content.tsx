@@ -255,6 +255,19 @@ export function ConfigurationContent() {
     }
   });
 
+  // Resend invite mutation
+  const resendInviteMutation = useMutation({
+    mutationFn: ({ userId, email }: { userId: string; email: string }) =>
+      usersApi.resendInvite(userId, email),
+    onSuccess: (response) => {
+      if (response.success) {
+        toast.success(response.message || 'Email reenviado exitosamente');
+      } else {
+        toast.error(response.error || 'Error al reenviar email');
+      }
+    }
+  });
+
   // Create category mutation
   const createCategoryMutation = useMutation({
     mutationFn: (data: CategoryFormData) => expenseCategoriesApi.createCategory({
@@ -481,6 +494,19 @@ export function ConfigurationContent() {
                   <SelectItem value="technician">Técnico</SelectItem>
                 </SelectContent>
               </Select>
+            )}
+
+            {/* Resend invite button */}
+            {canManage && !isSelf && (
+              <Button
+                variant="ghost"
+                size="sm"
+                title="Reenviar email de invitación"
+                onClick={() => resendInviteMutation.mutate({ userId: tableUser.id, email: tableUser.email })}
+                disabled={resendInviteMutation.isPending}
+              >
+                <Mail className="h-4 w-4" />
+              </Button>
             )}
 
             {/* Edit button */}
