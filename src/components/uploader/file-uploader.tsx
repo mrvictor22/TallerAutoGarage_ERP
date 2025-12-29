@@ -169,22 +169,21 @@ export function FileUploader({
             : 'border-muted-foreground/25 hover:border-primary/50'
         } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
-        <CardContent className="flex flex-col items-center justify-center py-8">
+        <CardContent className="flex flex-col items-center justify-center py-6 px-4">
           <input {...getInputProps()} />
-          <Upload className="h-10 w-10 text-muted-foreground mb-4" />
-          <div className="text-center">
-            <p className="text-sm font-medium">
-              {isDragActive 
-                ? 'Suelta los archivos aquí...' 
-                : 'Arrastra archivos aquí o haz clic para seleccionar'
+          <Upload className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground mb-3" />
+          <div className="text-center w-full max-w-full">
+            <p className="text-sm font-medium break-words">
+              {isDragActive
+                ? 'Suelta los archivos aquí...'
+                : 'Toca para seleccionar archivos'
               }
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Máximo {maxFiles} archivo{maxFiles > 1 ? 's' : ''}, 
-              hasta {formatFileSize(maxSize)} cada uno
+            <p className="text-xs text-muted-foreground mt-1 break-words">
+              Máx. {maxFiles} archivo{maxFiles > 1 ? 's' : ''}, {formatFileSize(maxSize)} c/u
             </p>
-            <p className="text-xs text-muted-foreground">
-              Formatos: {acceptedTypes.join(', ')}
+            <p className="text-xs text-muted-foreground break-words">
+              Imágenes y PDF
             </p>
           </div>
         </CardContent>
@@ -198,31 +197,24 @@ export function FileUploader({
           </h4>
           <div className="space-y-2">
             {files.map((fileUpload) => (
-              <Card key={fileUpload.id} className="p-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0">
+              <Card key={fileUpload.id} className="p-3 overflow-hidden">
+                <div className="flex items-start gap-2">
+                  <div className="flex-shrink-0 mt-0.5">
                     {getFileIcon(fileUpload.file)}
                   </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-sm font-medium truncate">
+
+                  <div className="flex-1 min-w-0 overflow-hidden">
+                    {/* Filename and actions row */}
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <p className="text-sm font-medium truncate flex-1 min-w-0">
                         {fileUpload.file.name}
                       </p>
-                      <div className="flex items-center gap-2">
-                        <Badge className={getStatusColor(fileUpload.status)}>
-                          {getStatusIcon(fileUpload.status)}
-                          <span className="ml-1 capitalize">
-                            {fileUpload.status === 'pending' && 'Pendiente'}
-                            {fileUpload.status === 'uploading' && 'Subiendo'}
-                            {fileUpload.status === 'completed' && 'Completado'}
-                            {fileUpload.status === 'error' && 'Error'}
-                          </span>
-                        </Badge>
+                      <div className="flex items-center gap-1 flex-shrink-0">
                         {fileUpload.status === 'completed' && fileUpload.url && (
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
+                            className="h-8 w-8"
                             onClick={() => window.open(fileUpload.url, '_blank')}
                           >
                             <Eye className="h-4 w-4" />
@@ -230,33 +222,42 @@ export function FileUploader({
                         )}
                         <Button
                           variant="ghost"
-                          size="sm"
+                          size="icon"
+                          className="h-8 w-8"
                           onClick={() => removeFile(fileUpload.id)}
                         >
                           <X className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+
+                    {/* Status and size row */}
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                       <span>{formatFileSize(fileUpload.file.size)}</span>
-                      {fileUpload.status === 'uploading' && (
-                        <span>{Math.round(fileUpload.progress)}%</span>
-                      )}
+                      <Badge className={`${getStatusColor(fileUpload.status)} text-xs px-1.5 py-0`}>
+                        {getStatusIcon(fileUpload.status)}
+                        <span className="ml-1">
+                          {fileUpload.status === 'pending' && 'Pendiente'}
+                          {fileUpload.status === 'uploading' && `${Math.round(fileUpload.progress)}%`}
+                          {fileUpload.status === 'completed' && 'Listo'}
+                          {fileUpload.status === 'error' && 'Error'}
+                        </span>
+                      </Badge>
                     </div>
-                    
+
                     {fileUpload.status === 'uploading' && (
-                      <Progress value={fileUpload.progress} className="mt-2" />
+                      <Progress value={fileUpload.progress} className="mt-2 h-1" />
                     )}
-                    
+
                     {fileUpload.status === 'error' && (
-                      <div className="mt-2 flex items-center justify-between">
-                        <p className="text-xs text-red-600">
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <p className="text-xs text-red-600 truncate">
                           {fileUpload.error}
                         </p>
                         <Button
                           variant="outline"
                           size="sm"
+                          className="h-7 text-xs flex-shrink-0"
                           onClick={() => retryUpload(fileUpload)}
                         >
                           Reintentar

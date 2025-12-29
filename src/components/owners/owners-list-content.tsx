@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
@@ -8,6 +8,7 @@ import { ownersApi } from '@/services/supabase-api';
 import { OwnerWithRelations, OwnerType } from '@/types/database';
 import { OwnerFilters } from '@/services/supabase-api';
 import { DataTable } from '@/components/tables/data-table';
+import { OwnerCard } from '@/components/cards/owner-card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,17 +56,30 @@ import {
   FileText,
   X,
   Search,
-  Trash2
+  Trash2,
+  Grid3X3,
+  List
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useIsMobile } from '@/hooks/use-is-mobile';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export function OwnersListContent() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
+  const [view, setView] = useState<'table' | 'cards'>('table');
   const [filters, setFilters] = useState<OwnerFilters>({});
   const [showFilters, setShowFilters] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [ownerToDelete, setOwnerToDelete] = useState<OwnerWithRelations | null>(null);
+
+  // Auto-switch to cards view on mobile
+  useEffect(() => {
+    if (isMobile) {
+      setView('cards');
+    }
+  }, [isMobile]);
 
   // Fetch owners
   const { data: ownersResponse, isLoading } = useQuery({
@@ -332,28 +346,28 @@ export function OwnersListContent() {
   const allTags = Array.from(new Set(owners.flatMap(owner => owner.tags || [])));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Clientes</h1>
+          <p className="text-sm text-muted-foreground">
             Gestiona la información de clientes y empresas
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setShowFilters(!showFilters)}>
-            <Filter className="mr-2 h-4 w-4" />
-            Filtros
+          <Button variant="outline" size="sm" className="md:size-default" onClick={() => setShowFilters(!showFilters)}>
+            <Filter className="h-4 w-4 md:mr-2" />
+            <span className="hidden md:inline">Filtros</span>
             {hasActiveFilters && (
-              <Badge variant="secondary" className="ml-2">
+              <Badge variant="secondary" className="ml-1 md:ml-2">
                 {Object.values(filters).filter(v => v !== undefined && v !== '').length}
               </Badge>
             )}
           </Button>
-          <Button onClick={handleNewOwner}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Cliente
+          <Button size="sm" className="md:size-default" onClick={handleNewOwner}>
+            <Plus className="h-4 w-4 md:mr-2" />
+            <span className="hidden sm:inline">Nuevo Cliente</span>
           </Button>
         </div>
       </div>
@@ -438,6 +452,33 @@ export function OwnersListContent() {
         </Card>
       )}
 
+      {/* View Toggle and Stats */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span>{owners.length} clientes encontrados</span>
+          {hasActiveFilters && (
+            <span className="hidden sm:inline">• Filtros aplicados</span>
+          )}
+        </div>
+        <div className="flex items-center justify-between sm:justify-end gap-2">
+          <Button variant="outline" size="sm" onClick={() => handleExport(owners)} className="sm:hidden">
+            <Download className="h-4 w-4" />
+          </Button>
+          <Tabs value={view} onValueChange={(value) => setView(value as 'table' | 'cards')}>
+            <TabsList className="h-9">
+              <TabsTrigger value="table" className="text-xs sm:text-sm">
+                <List className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Lista</span>
+              </TabsTrigger>
+              <TabsTrigger value="cards" className="text-xs sm:text-sm">
+                <Grid3X3 className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Tarjetas</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -492,32 +533,45 @@ export function OwnersListContent() {
         </Card>
       </div>
 
-      {/* Table */}
-      <DataTable
-        columns={columns}
-        data={owners}
-        searchKey="name"
-        searchPlaceholder="Buscar por nombre, teléfono o email..."
-        onExport={handleExport}
-        enableRowSelection={true}
-      />
-
-      {/* Empty state */}
-      {owners.length === 0 && !isLoading && (
-        <div className="text-center py-12">
-          <User className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-          <h3 className="text-lg font-medium mb-2">No hay clientes</h3>
-          <p className="text-muted-foreground mb-4">
-            {hasActiveFilters
-              ? 'No se encontraron clientes con los filtros aplicados'
-              : 'Comienza agregando tu primer cliente'
-            }
-          </p>
-          {!hasActiveFilters && (
-            <Button onClick={handleNewOwner}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nuevo Cliente
-            </Button>
+      {/* Content */}
+      {view === 'table' ? (
+        <DataTable
+          columns={columns}
+          data={owners}
+          searchKey="name"
+          searchPlaceholder="Buscar por nombre, teléfono o email..."
+          onExport={handleExport}
+          enableRowSelection={true}
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {owners.map((owner) => (
+            <OwnerCard
+              key={owner.id}
+              owner={owner}
+              onView={handleViewOwner}
+              onEdit={handleEditOwner}
+              onSendMessage={handleSendMessage}
+              onDelete={handleDeleteOwner}
+            />
+          ))}
+          {owners.length === 0 && (
+            <div className="col-span-full text-center py-12">
+              <User className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+              <h3 className="text-lg font-medium mb-2">No hay clientes</h3>
+              <p className="text-muted-foreground mb-4">
+                {hasActiveFilters
+                  ? 'No se encontraron clientes con los filtros aplicados'
+                  : 'Comienza agregando tu primer cliente'
+                }
+              </p>
+              {!hasActiveFilters && (
+                <Button onClick={handleNewOwner}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nuevo Cliente
+                </Button>
+              )}
+            </div>
           )}
         </div>
       )}

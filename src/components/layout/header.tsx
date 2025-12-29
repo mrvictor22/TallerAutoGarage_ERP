@@ -74,11 +74,11 @@ export function Header({ onMenuClick }: HeaderProps) {
     <header className="flex h-14 md:h-16 items-center justify-between border-b bg-background px-4 md:px-6">
       {/* Left side */}
       <div className="flex items-center gap-2 md:gap-4">
-        {/* Mobile menu button */}
+        {/* Mobile menu button - increased touch target */}
         <Button
           variant="ghost"
           size="icon"
-          className="lg:hidden"
+          className="lg:hidden h-11 w-11 min-w-[44px] min-h-[44px]"
           onClick={onMenuClick}
           aria-label="Abrir menú"
         >
@@ -101,15 +101,16 @@ export function Header({ onMenuClick }: HeaderProps) {
           </kbd>
         </Button>
 
-        {/* Mobile search button */}
+        {/* Mobile search button - increased touch target */}
         <Button
           variant="ghost"
           size="icon"
-          className="md:hidden"
+          className="md:hidden h-11 w-11 min-w-[44px] min-h-[44px]"
           onClick={() => {
             // TODO: Implement global search modal
             console.log('Open search modal');
           }}
+          aria-label="Buscar"
         >
           <Search className="h-5 w-5" />
         </Button>
@@ -117,10 +118,15 @@ export function Header({ onMenuClick }: HeaderProps) {
 
       {/* Right side */}
       <div className="flex items-center gap-2 md:gap-4">
-        {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
+        {/* Notifications - increased touch target */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative h-11 w-11 min-w-[44px] min-h-[44px]"
+          aria-label="Notificaciones"
+        >
           <Bell className="h-5 w-5" />
-          <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 text-xs"></span>
+          <span className="absolute top-2 right-2 h-3 w-3 rounded-full bg-red-500 text-xs" aria-hidden="true"></span>
         </Button>
 
         {/* Keyboard shortcuts help - hidden on mobile */}
@@ -128,23 +134,29 @@ export function Header({ onMenuClick }: HeaderProps) {
           <KeyboardShortcutsHelp />
         </div>
 
-        {/* Theme toggle */}
+        {/* Theme toggle - increased touch target */}
         <Button
           variant="ghost"
           size="icon"
+          className="h-11 w-11 min-w-[44px] min-h-[44px]"
           onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
           title="Cambiar tema"
+          aria-label="Cambiar tema"
         >
           <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
           <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          <span className="sr-only">Toggle theme</span>
+          <span className="sr-only">Cambiar tema</span>
         </Button>
 
-        {/* User menu */}
+        {/* User menu - increased touch target on mobile */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-10 w-auto gap-2 px-2">
-              <Avatar className="h-8 w-8">
+            <Button
+              variant="ghost"
+              className="relative h-11 w-auto gap-2 px-2 min-h-[44px]"
+              aria-label="Menú de usuario"
+            >
+              <Avatar className="h-9 w-9">
                 <AvatarImage src={user?.avatar_url || ''} alt={user?.full_name || ''} />
                 <AvatarFallback className="text-xs">
                   {user?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}

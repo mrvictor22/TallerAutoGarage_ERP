@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
@@ -46,6 +46,7 @@ import {
   X
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 
 const orderStatuses: { value: OrderStatus; label: string }[] = [
   { value: 'new', label: 'Nuevo' },
@@ -62,9 +63,17 @@ const orderStatuses: { value: OrderStatus; label: string }[] = [
 
 export function OrdersListContent() {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [view, setView] = useState<'table' | 'cards'>('table');
   const [filters, setFilters] = useState<OrderFilters>({});
   const [showFilters, setShowFilters] = useState(false);
+
+  // Auto-switch to cards view on mobile
+  useEffect(() => {
+    if (isMobile) {
+      setView('cards');
+    }
+  }, [isMobile]);
 
   // Fetch orders
   const { data: ordersResponse, isLoading, refetch } = useQuery({

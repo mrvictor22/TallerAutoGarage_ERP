@@ -538,32 +538,34 @@ export function OrderDetailContent({ orderId, defaultTab = 'summary' }: OrderDet
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="summary">
-            <FileText className="h-4 w-4 mr-2" />
-            Resumen
-          </TabsTrigger>
-          <TabsTrigger value="timeline">
-            <Clock className="h-4 w-4 mr-2" />
-            Bitácora
-          </TabsTrigger>
-          <TabsTrigger value="budget">
-            <Wrench className="h-4 w-4 mr-2" />
-            Presupuesto
-          </TabsTrigger>
-          <TabsTrigger value="payments">
-            <DollarSign className="h-4 w-4 mr-2" />
-            Pagos
-          </TabsTrigger>
-          <TabsTrigger value="parts">
-            <Package className="h-4 w-4 mr-2" />
-            Repuestos
-          </TabsTrigger>
-          <TabsTrigger value="whatsapp">
-            <MessageSquare className="h-4 w-4 mr-2" />
-            WhatsApp
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <TabsList className="inline-flex w-max sm:w-auto h-auto flex-wrap sm:flex-nowrap gap-1 p-1">
+            <TabsTrigger value="summary" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2">
+              <FileText className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Resumen</span>
+            </TabsTrigger>
+            <TabsTrigger value="timeline" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2">
+              <Clock className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Bitácora</span>
+            </TabsTrigger>
+            <TabsTrigger value="budget" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2">
+              <Wrench className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Presupuesto</span>
+            </TabsTrigger>
+            <TabsTrigger value="payments" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2">
+              <DollarSign className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Pagos</span>
+            </TabsTrigger>
+            <TabsTrigger value="parts" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2">
+              <Package className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Repuestos</span>
+            </TabsTrigger>
+            <TabsTrigger value="whatsapp" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2">
+              <MessageSquare className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">WhatsApp</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="summary" className="mt-6">
           <OrderSummary order={order} />
@@ -593,10 +595,10 @@ export function OrderDetailContent({ orderId, defaultTab = 'summary' }: OrderDet
         </TabsContent>
 
         <TabsContent value="parts" className="mt-6">
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
             <Card>
-              <CardHeader>
-                <CardTitle>Facturas de Repuestos</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Facturas de Repuestos</CardTitle>
               </CardHeader>
               <CardContent>
                 {order.parts_invoices && order.parts_invoices.length > 0 ? (
@@ -634,11 +636,11 @@ export function OrderDetailContent({ orderId, defaultTab = 'summary' }: OrderDet
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Subir Documentos</CardTitle>
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Subir Documentos</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-3 sm:px-6">
                 <FileUploader
                   acceptedTypes={['image/*', 'application/pdf']}
                   maxFiles={5}
