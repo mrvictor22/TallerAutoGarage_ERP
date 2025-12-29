@@ -46,11 +46,13 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     // Get the user's profile to get their metadata
-    const { data: userProfile } = await adminClient
+    const userProfileResult = await adminClient
       .from('profiles')
       .select('full_name, role')
       .eq('id', userId)
       .single()
+
+    const userProfile = userProfileResult.data as { full_name: string; role: string } | null
 
     // Define redirect URL
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tallerautogarage.apexcodelabs.com'
