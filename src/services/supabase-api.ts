@@ -1183,6 +1183,24 @@ export const usersApi = {
     return createSuccessResponse(null, result.message || 'Email reenviado exitosamente')
   },
 
+  confirmEmail: async (userId: string): Promise<ApiResponse<null>> => {
+    const response = await fetch('/api/admin/confirm-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId }),
+    })
+
+    const result = await response.json()
+
+    if (!result.success) {
+      return createErrorResponse(result.error || 'Error al confirmar email')
+    }
+
+    return createSuccessResponse(null, result.message || 'Email confirmado exitosamente')
+  },
+
   getPendingApprovals: async (): Promise<ApiResponse<Profile[]>> => {
     const supabase = createClient()
 

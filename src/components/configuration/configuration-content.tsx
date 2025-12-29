@@ -268,6 +268,19 @@ export function ConfigurationContent() {
     }
   });
 
+  // Confirm email mutation
+  const confirmEmailMutation = useMutation({
+    mutationFn: (userId: string) => usersApi.confirmEmail(userId),
+    onSuccess: (response) => {
+      if (response.success) {
+        toast.success(response.message || 'Email confirmado exitosamente');
+        queryClient.invalidateQueries({ queryKey: ['users'] });
+      } else {
+        toast.error(response.error || 'Error al confirmar email');
+      }
+    }
+  });
+
   // Create category mutation
   const createCategoryMutation = useMutation({
     mutationFn: (data: CategoryFormData) => expenseCategoriesApi.createCategory({
@@ -506,6 +519,20 @@ export function ConfigurationContent() {
                 disabled={resendInviteMutation.isPending}
               >
                 <Mail className="h-4 w-4" />
+              </Button>
+            )}
+
+            {/* Confirm email button */}
+            {canManage && !isSelf && (
+              <Button
+                variant="ghost"
+                size="sm"
+                title="Confirmar email manualmente"
+                className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                onClick={() => confirmEmailMutation.mutate(tableUser.id)}
+                disabled={confirmEmailMutation.isPending}
+              >
+                <UserCheck className="h-4 w-4" />
               </Button>
             )}
 
