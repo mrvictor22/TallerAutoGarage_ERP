@@ -654,21 +654,21 @@ CREATE POLICY "Admins can insert profiles" ON profiles FOR INSERT TO authenticat
 
 -- Owners policies
 CREATE POLICY "Authenticated users can view owners" ON owners FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Admin and reception can insert owners" ON owners FOR INSERT TO authenticated WITH CHECK (auth.user_role() IN ('admin', 'reception'));
-CREATE POLICY "Admin and reception can update owners" ON owners FOR UPDATE TO authenticated USING (auth.user_role() IN ('admin', 'reception'));
-CREATE POLICY "Admins can delete owners" ON owners FOR DELETE TO authenticated USING (auth.is_admin());
+CREATE POLICY "Authorized roles can insert owners" ON owners FOR INSERT TO authenticated WITH CHECK (auth.user_role() IN ('admin', 'reception', 'mechanic_lead', 'technician'));
+CREATE POLICY "Authorized roles can update owners" ON owners FOR UPDATE TO authenticated USING (auth.user_role() IN ('admin', 'reception', 'mechanic_lead', 'technician'));
+CREATE POLICY "Admin can delete owners" ON owners FOR DELETE TO authenticated USING (auth.user_role() = 'admin');
 
 -- Vehicles policies
 CREATE POLICY "Authenticated users can view vehicles" ON vehicles FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Admin and reception can insert vehicles" ON vehicles FOR INSERT TO authenticated WITH CHECK (auth.user_role() IN ('admin', 'reception'));
-CREATE POLICY "Admin and reception can update vehicles" ON vehicles FOR UPDATE TO authenticated USING (auth.user_role() IN ('admin', 'reception'));
-CREATE POLICY "Admins can delete vehicles" ON vehicles FOR DELETE TO authenticated USING (auth.is_admin());
+CREATE POLICY "Authorized roles can insert vehicles" ON vehicles FOR INSERT TO authenticated WITH CHECK (auth.user_role() IN ('admin', 'reception', 'mechanic_lead', 'technician'));
+CREATE POLICY "Authorized roles can update vehicles" ON vehicles FOR UPDATE TO authenticated USING (auth.user_role() IN ('admin', 'reception', 'mechanic_lead', 'technician'));
+CREATE POLICY "Admin can delete vehicles" ON vehicles FOR DELETE TO authenticated USING (auth.user_role() = 'admin');
 
 -- Orders policies
 CREATE POLICY "Authenticated users can view orders" ON orders FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Admin and reception can insert orders" ON orders FOR INSERT TO authenticated WITH CHECK (auth.user_role() IN ('admin', 'reception'));
-CREATE POLICY "Authenticated users can update orders" ON orders FOR UPDATE TO authenticated USING (true);
-CREATE POLICY "Admins can delete orders" ON orders FOR DELETE TO authenticated USING (auth.is_admin());
+CREATE POLICY "Authorized roles can insert orders" ON orders FOR INSERT TO authenticated WITH CHECK (auth.user_role() IN ('admin', 'reception', 'mechanic_lead', 'technician'));
+CREATE POLICY "Authorized roles can update orders" ON orders FOR UPDATE TO authenticated USING (auth.user_role() IN ('admin', 'reception', 'mechanic_lead', 'technician'));
+CREATE POLICY "Admin can delete orders" ON orders FOR DELETE TO authenticated USING (auth.user_role() = 'admin');
 
 -- Budget lines policies
 CREATE POLICY "Authenticated users can view budget lines" ON budget_lines FOR SELECT TO authenticated USING (true);
