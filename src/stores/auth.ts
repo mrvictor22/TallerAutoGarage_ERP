@@ -27,12 +27,16 @@ interface AuthState {
 }
 
 // Role-based permissions configuration
+// Permissions follow pattern: resource:action
+// Actions: read, create, update, delete, archive, assign, approve, send
+// Note: Only admin can delete records. Other roles can archive.
 const rolePermissions: Record<UserRole, string[]> = {
-  admin: ['*'], // Admin has all permissions
+  admin: ['*'], // Admin has all permissions including delete
   reception: [
     'orders:read',
     'orders:create',
     'orders:update',
+    'orders:archive',
     'owners:*',
     'vehicles:*',
     'whatsapp:send',
@@ -40,11 +44,26 @@ const rolePermissions: Record<UserRole, string[]> = {
     'payments:*'
   ],
   mechanic_lead: [
+    // Orders - full CRUD except delete
     'orders:read',
+    'orders:create',
     'orders:update',
     'orders:assign',
+    'orders:archive',
+    // Owners - can create, read, update and archive (not delete)
+    'owners:read',
+    'owners:create',
+    'owners:update',
+    'owners:archive',
+    // Vehicles - can create, read, update and archive (not delete)
+    'vehicles:read',
+    'vehicles:create',
+    'vehicles:update',
+    'vehicles:archive',
+    // Budget
     'budget:read',
     'budget:approve',
+    // Other permissions
     'timeline:*',
     'parts:*',
     'technicians:read',
@@ -53,8 +72,22 @@ const rolePermissions: Record<UserRole, string[]> = {
     'dashboard:read'
   ],
   technician: [
+    // Orders - can create and manage orders
     'orders:read',
+    'orders:create',
     'orders:update',
+    'orders:archive',
+    // Owners - can create, read, update and archive (not delete)
+    'owners:read',
+    'owners:create',
+    'owners:update',
+    'owners:archive',
+    // Vehicles - can create, read, update and archive (not delete)
+    'vehicles:read',
+    'vehicles:create',
+    'vehicles:update',
+    'vehicles:archive',
+    // Other permissions
     'timeline:*',
     'parts:*',
     'dashboard:read'
