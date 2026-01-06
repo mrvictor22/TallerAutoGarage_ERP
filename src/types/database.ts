@@ -259,6 +259,8 @@ export interface Database {
           created_by: string | null
           created_at: string
           updated_at: string
+          archived_at: string | null
+          archived_by: string | null
         }
         Insert: {
           id?: string
@@ -301,6 +303,8 @@ export interface Database {
           created_by?: string | null
           created_at?: string
           updated_at?: string
+          archived_at?: string | null
+          archived_by?: string | null
         }
         Update: {
           id?: string
@@ -343,6 +347,8 @@ export interface Database {
           created_by?: string | null
           created_at?: string
           updated_at?: string
+          archived_at?: string | null
+          archived_by?: string | null
         }
       }
       budget_lines: {
