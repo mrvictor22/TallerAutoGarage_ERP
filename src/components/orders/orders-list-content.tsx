@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
 import { ordersApi, OrderFilters } from '@/services/supabase-api';
 import { OrderWithRelations, OrderStatus } from '@/types/database';
+import { useAuthStore } from '@/stores/auth';
 import { DataTable } from '@/components/tables/data-table';
 import { OrderCard } from '@/components/cards/order-card';
 import { Button } from '@/components/ui/button';
@@ -25,8 +26,20 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { formatCurrency, formatDate, getOrderStatusColor, timeAgo } from '@/lib/utils';
 import {
   Plus,
@@ -43,7 +56,10 @@ import {
   Grid3X3,
   List,
   Search,
-  X
+  X,
+  Archive,
+  ArchiveRestore,
+  Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-is-mobile';
@@ -64,9 +80,16 @@ const orderStatuses: { value: OrderStatus; label: string }[] = [
 export function OrdersListContent() {
   const router = useRouter();
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
+  const { hasPermission } = useAuthStore();
   const [view, setView] = useState<'table' | 'cards'>('table');
   const [filters, setFilters] = useState<OrderFilters>({});
   const [showFilters, setShowFilters] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<OrderWithRelations | null>(null);
+
+  // Permission checks
+  const canArchive = hasPermission('orders', 'archive');
+  const canDelete = hasPermission('orders', 'delete');
 
   // Auto-switch to cards view on mobile
   useEffect(() => {
@@ -89,6 +112,49 @@ export function OrdersListContent() {
   });
 
   const orders = ordersResponse?.data || [];
+
+  // Archive mutation
+  const archiveMutation = useMutation({
+    mutationFn: (id: string) => ordersApi.archiveOrder(id),
+    onSuccess: (response) => {
+      if (response.success) {
+        toast.success(response.message || 'Orden archivada');
+        queryClient.invalidateQueries({ queryKey: ['orders'] });
+      } else {
+        toast.error(response.error || 'Error al archivar');
+      }
+    },
+    onError: () => toast.error('Error al archivar la orden')
+  });
+
+  // Restore mutation
+  const restoreMutation = useMutation({
+    mutationFn: (id: string) => ordersApi.restoreOrder(id),
+    onSuccess: (response) => {
+      if (response.success) {
+        toast.success(response.message || 'Orden restaurada');
+        queryClient.invalidateQueries({ queryKey: ['orders'] });
+      } else {
+        toast.error(response.error || 'Error al restaurar');
+      }
+    },
+    onError: () => toast.error('Error al restaurar la orden')
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => ordersApi.deleteOrder(id),
+    onSuccess: (response) => {
+      if (response.success) {
+        toast.success(response.message || 'Orden eliminada');
+        queryClient.invalidateQueries({ queryKey: ['orders'] });
+        setOrderToDelete(null);
+      } else {
+        toast.error(response.error || 'Error al eliminar');
+      }
+    },
+    onError: () => toast.error('Error al eliminar la orden')
+  });
 
   // Table columns
   const columns: ColumnDef<OrderWithRelations>[] = [
@@ -195,6 +261,7 @@ export function OrdersListContent() {
       header: 'Acciones',
       cell: ({ row }) => {
         const order = row.original;
+        const isArchived = !!order.archived_at;
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -207,14 +274,44 @@ export function OrdersListContent() {
                 <Eye className="mr-2 h-4 w-4" />
                 Ver Detalles
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleEditOrder(order)}>
-                <Edit className="mr-2 h-4 w-4" />
-                Editar
-              </DropdownMenuItem>
-              {order.owner.whatsapp_consent && (
+              {!isArchived && (
+                <DropdownMenuItem onClick={() => handleEditOrder(order)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Editar
+                </DropdownMenuItem>
+              )}
+              {order.owner.whatsapp_consent && !isArchived && (
                 <DropdownMenuItem onClick={() => handleSendMessage(order)}>
                   <MessageSquare className="mr-2 h-4 w-4" />
                   Enviar WhatsApp
+                </DropdownMenuItem>
+              )}
+              {(canArchive || canDelete) && <DropdownMenuSeparator />}
+              {canArchive && !isArchived && (
+                <DropdownMenuItem
+                  onClick={() => archiveMutation.mutate(order.id)}
+                  disabled={archiveMutation.isPending}
+                >
+                  <Archive className="mr-2 h-4 w-4" />
+                  Archivar
+                </DropdownMenuItem>
+              )}
+              {canArchive && isArchived && (
+                <DropdownMenuItem
+                  onClick={() => restoreMutation.mutate(order.id)}
+                  disabled={restoreMutation.isPending}
+                >
+                  <ArchiveRestore className="mr-2 h-4 w-4" />
+                  Restaurar
+                </DropdownMenuItem>
+              )}
+              {canDelete && (
+                <DropdownMenuItem
+                  onClick={() => setOrderToDelete(order)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Eliminar
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -382,6 +479,18 @@ export function OrdersListContent() {
                   onChange={(e) => updateFilter('date_to', e.target.value || undefined)}
                 />
               </div>
+              {canArchive && (
+                <div className="flex items-center space-x-2 pt-6">
+                  <Checkbox
+                    id="showArchived"
+                    checked={filters.show_archived || false}
+                    onCheckedChange={(checked) => updateFilter('show_archived', checked ? true : undefined)}
+                  />
+                  <Label htmlFor="showArchived" className="text-sm font-normal cursor-pointer">
+                    Mostrar archivadas
+                  </Label>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -455,6 +564,29 @@ export function OrdersListContent() {
           )}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar orden permanentemente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente la orden{' '}
+              <span className="font-semibold">{orderToDelete?.folio}</span> y todos sus datos asociados
+              (presupuesto, línea de tiempo, pagos, etc.).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => orderToDelete && deleteMutation.mutate(orderToDelete.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? 'Eliminando...' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

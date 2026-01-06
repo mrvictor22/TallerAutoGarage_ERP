@@ -61,6 +61,7 @@ export interface OrderFilters {
   owner_id?: string
   vehicle_id?: string
   payment_status?: string
+  show_archived?: boolean
 }
 
 export interface OwnerFilters {
@@ -393,6 +394,11 @@ export const ordersApi = {
       query = query.or(`folio.ilike.%${filters.search}%,reason.ilike.%${filters.search}%`)
     }
 
+    // Filter archived orders (hide by default unless show_archived is true)
+    if (!filters.show_archived) {
+      query = query.is('archived_at', null)
+    }
+
     // Pagination
     const from = (page - 1) * pageSize
     const to = from + pageSize - 1
@@ -589,6 +595,66 @@ export const ordersApi = {
     }
 
     return createSuccessResponse(null, 'Orden eliminada exitosamente')
+  },
+
+  archiveOrder: async (id: string): Promise<ApiResponse<Order>> => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const { data, error } = await supabase
+      .from('orders')
+      .update({
+        archived_at: new Date().toISOString(),
+        archived_by: user?.id
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      return createErrorResponse(error.message)
+    }
+
+    // Create timeline entry for archive
+    await supabase.from('timeline_entries').insert({
+      order_id: id,
+      type: 'status_change',
+      title: 'Orden archivada',
+      description: 'La orden ha sido archivada',
+      author_id: user?.id ?? ''
+    })
+
+    return createSuccessResponse(data, 'Orden archivada exitosamente')
+  },
+
+  restoreOrder: async (id: string): Promise<ApiResponse<Order>> => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const { data, error } = await supabase
+      .from('orders')
+      .update({
+        archived_at: null,
+        archived_by: null
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      return createErrorResponse(error.message)
+    }
+
+    // Create timeline entry for restore
+    await supabase.from('timeline_entries').insert({
+      order_id: id,
+      type: 'status_change',
+      title: 'Orden restaurada',
+      description: 'La orden ha sido restaurada del archivo',
+      author_id: user?.id ?? ''
+    })
+
+    return createSuccessResponse(data, 'Orden restaurada exitosamente')
   },
 
   getOrdersByVehicle: async (vehicleId: string): Promise<ApiResponse<Order[]>> => {

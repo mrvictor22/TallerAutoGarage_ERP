@@ -44,22 +44,19 @@ const rolePermissions: Record<UserRole, string[]> = {
     'payments:*'
   ],
   mechanic_lead: [
-    // Orders - full CRUD except delete
+    // Orders - can create, read, update, assign (NOT archive/delete per issue #6)
     'orders:read',
     'orders:create',
     'orders:update',
     'orders:assign',
-    'orders:archive',
-    // Owners - can create, read, update and archive (not delete)
+    // Owners - can create, read, update (NOT archive/delete)
     'owners:read',
     'owners:create',
     'owners:update',
-    'owners:archive',
-    // Vehicles - can create, read, update and archive (not delete)
+    // Vehicles - can create, read, update (NOT archive/delete)
     'vehicles:read',
     'vehicles:create',
     'vehicles:update',
-    'vehicles:archive',
     // Budget
     'budget:read',
     'budget:approve',
@@ -72,21 +69,18 @@ const rolePermissions: Record<UserRole, string[]> = {
     'dashboard:read'
   ],
   technician: [
-    // Orders - can create and manage orders
+    // Orders - can create, read, update (NOT archive/delete per issue #6)
     'orders:read',
     'orders:create',
     'orders:update',
-    'orders:archive',
-    // Owners - can create, read, update and archive (not delete)
+    // Owners - can create, read, update (NOT archive/delete)
     'owners:read',
     'owners:create',
     'owners:update',
-    'owners:archive',
-    // Vehicles - can create, read, update and archive (not delete)
+    // Vehicles - can create, read, update (NOT archive/delete)
     'vehicles:read',
     'vehicles:create',
     'vehicles:update',
-    'vehicles:archive',
     // Other permissions
     'timeline:*',
     'parts:*',
