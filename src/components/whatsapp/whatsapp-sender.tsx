@@ -133,8 +133,13 @@ export function WhatsAppSender({ order, onMessageSent }: WhatsAppSenderProps) {
 
   // Send message mutation
   const sendMessageMutation = useMutation({
-    mutationFn: ({ templateId, variables }: { templateId: string; variables: Record<string, string> }) =>
-      whatsappApiEnhanced.sendMessage(order.owner_id, order.id, templateId, variables, order.owner.phone),
+    mutationFn: async ({ templateId, variables }: { templateId: string; variables: Record<string, string> }) => {
+      const result = await whatsappApiEnhanced.sendMessage(order.owner_id, order.id, templateId, variables, order.owner.phone);
+      if (!result.success) {
+        throw new Error(result.error || 'Error al enviar mensaje');
+      }
+      return result;
+    },
     onSuccess: () => {
       toast.success('Mensaje enviado exitosamente');
       setSelectedTemplateId('');

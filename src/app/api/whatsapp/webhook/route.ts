@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { validateTwilioWebhook, mapTwilioStatus } from '@/services/twilio'
 
+// Force Node.js runtime for Twilio SDK compatibility
+export const runtime = 'nodejs'
+
 /**
  * Twilio WhatsApp Webhook Handler
  *

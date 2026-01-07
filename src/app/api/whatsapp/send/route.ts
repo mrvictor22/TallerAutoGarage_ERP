@@ -4,6 +4,9 @@ import { createClient } from '@/lib/supabase/server'
 import { sendWhatsAppMessage, getTwilioConfig } from '@/services/twilio'
 import type { WhatsAppTemplate } from '@/types/database'
 
+// Force Node.js runtime for Twilio SDK compatibility
+export const runtime = 'nodejs'
+
 interface SendMessageRequest {
   ownerId: string
   orderId?: string | null
