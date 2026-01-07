@@ -102,7 +102,10 @@ export function getWhatsAppFromNumber(): string | null {
 
 /**
  * Format a phone number for WhatsApp.
- * Ensures the number has the 'whatsapp:' prefix.
+ * Ensures the number has the 'whatsapp:' prefix and proper country code.
+ *
+ * Default country code is +503 (El Salvador) if not specified.
+ * Can be overridden with TWILIO_DEFAULT_COUNTRY_CODE env var.
  */
 export function formatWhatsAppNumber(phoneNumber: string): string {
   // Remove any existing whatsapp: prefix
@@ -111,10 +114,23 @@ export function formatWhatsAppNumber(phoneNumber: string): string {
   // Remove spaces, dashes, and parentheses
   const normalized = cleanNumber.replace(/[\s\-\(\)]/g, '')
 
-  // Ensure it starts with +
-  const withPlus = normalized.startsWith('+') ? normalized : `+${normalized}`
+  // Check if number already has a country code (starts with +)
+  if (normalized.startsWith('+')) {
+    return `whatsapp:${normalized}`
+  }
 
-  return `whatsapp:${withPlus}`
+  // Get default country code from env or use El Salvador (+503)
+  const defaultCountryCode = process.env.TWILIO_DEFAULT_COUNTRY_CODE || '+503'
+
+  // If number starts with the country code without +, add just the +
+  // e.g., "50379312064" -> "+50379312064"
+  if (normalized.startsWith(defaultCountryCode.replace('+', ''))) {
+    return `whatsapp:+${normalized}`
+  }
+
+  // Otherwise, prepend the default country code
+  // e.g., "79312064" -> "+50379312064"
+  return `whatsapp:${defaultCountryCode}${normalized}`
 }
 
 /**
