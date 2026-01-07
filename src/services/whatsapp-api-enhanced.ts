@@ -29,6 +29,12 @@ export interface WhatsAppStats {
   }
 }
 
+export interface TwilioStatus {
+  configured: boolean
+  mode: 'sandbox' | 'production' | 'not_configured'
+  whatsappNumber?: string
+}
+
 // ============================================
 // Helper Functions
 // ============================================
@@ -252,59 +258,49 @@ export const whatsappApiEnhanced = {
     variables: Record<string, string>,
     phoneNumber: string
   ): Promise<ApiResponse<WhatsAppMessage>> => {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    // Get template
-    const { data: template } = await supabase
-      .from('whatsapp_templates')
-      .select('*')
-      .eq('id', templateId)
-      .single()
-
-    if (!template) {
-      return createErrorResponse('Plantilla no encontrada')
-    }
-
-    // Replace variables in content
-    let content = template.content
-    Object.entries(variables).forEach(([key, value]) => {
-      content = content.replace(new RegExp(`{{${key}}}`, 'g'), value)
-    })
-
-    // Create message record
-    const { data, error } = await supabase
-      .from('whatsapp_messages')
-      .insert({
-        owner_id: ownerId,
-        order_id: orderId,
-        template_id: templateId,
-        phone_number: phoneNumber,
-        content,
-        variables,
-        status: 'sent', // In real implementation, this would be 'pending' until confirmed
-        sent_at: new Date().toISOString(),
-        created_by: user?.id
+    try {
+      // Call the new API endpoint that integrates with Twilio
+      const response = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ownerId,
+          orderId,
+          templateId,
+          variables,
+          phoneNumber
+        })
       })
-      .select()
-      .single()
 
-    if (error) {
-      return createErrorResponse(error.message)
+      const result = await response.json()
+
+      if (!result.success) {
+        return createErrorResponse(result.error || 'Error al enviar el mensaje')
+      }
+
+      // Get the created message to return full data
+      const supabase = createClient()
+      const { data: message, error: fetchError } = await supabase
+        .from('whatsapp_messages')
+        .select('*')
+        .eq('id', result.data.messageId)
+        .single()
+
+      if (fetchError || !message) {
+        // Return success anyway since message was sent
+        return {
+          success: true,
+          message: result.message || 'Mensaje enviado exitosamente'
+        } as ApiResponse<WhatsAppMessage>
+      }
+
+      return createSuccessResponse(message, result.message || 'Mensaje enviado exitosamente')
+    } catch (error) {
+      console.error('Error sending WhatsApp message:', error)
+      return createErrorResponse('Error de conexión al enviar el mensaje')
     }
-
-    // Add timeline entry if order exists
-    if (orderId) {
-      await supabase.from('timeline_entries').insert({
-        order_id: orderId,
-        type: 'message_sent',
-        title: 'Mensaje WhatsApp enviado',
-        description: `Se envió un mensaje usando la plantilla "${template.name}"`,
-        author_id: user?.id ?? ''
-      })
-    }
-
-    return createSuccessResponse(data, 'Mensaje enviado exitosamente')
   },
 
   getStats: async (): Promise<ApiResponse<WhatsAppStats>> => {
@@ -330,5 +326,22 @@ export const whatsappApiEnhanced = {
     }
 
     return createSuccessResponse(stats)
+  },
+
+  // Twilio Status
+  getTwilioStatus: async (): Promise<ApiResponse<TwilioStatus>> => {
+    try {
+      const response = await fetch('/api/whatsapp/status')
+      const result = await response.json()
+
+      if (!result.success) {
+        return createErrorResponse(result.error || 'Error al obtener estado de Twilio')
+      }
+
+      return createSuccessResponse(result.data)
+    } catch (error) {
+      console.error('Error getting Twilio status:', error)
+      return createErrorResponse('Error de conexión al verificar Twilio')
+    }
   }
 }

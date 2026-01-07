@@ -103,6 +103,26 @@
       "delivered": "Entregado",
       "read": "Leído",
       "error": "Error"
+    },
+    "twilio": {
+      "title": "Estado de Twilio",
+      "configured": "Twilio Configurado",
+      "notConfigured": "Twilio No Configurado",
+      "mode": "Modo",
+      "sandbox": "Sandbox",
+      "production": "Producción",
+      "whatsappNumber": "Número WhatsApp",
+      "verifyConnection": "Verificar Conexión",
+      "configuredMessage": "Los mensajes se enviarán a través de Twilio WhatsApp API",
+      "notConfiguredMessage": "Configure las variables de entorno en Vercel para habilitar el envío de mensajes",
+      "requiredVars": "Variables requeridas en Vercel",
+      "sandboxInfo": "Modo Sandbox Activo",
+      "sandboxHints": {
+        "join": "Los destinatarios deben unirse al sandbox primero",
+        "send": "Envía \"join [código]\" al número de Twilio sandbox",
+        "testing": "Solo para pruebas de desarrollo",
+        "production": "Para producción, solicita un número de WhatsApp Business aprobado"
+      }
     }
   },
   "configuration": {

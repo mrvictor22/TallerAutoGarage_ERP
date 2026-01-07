@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { configApi, usersApi, expenseCategoriesApi } from '@/services/supabase-api';
+import { whatsappApiEnhanced, TwilioStatus } from '@/services/whatsapp-api-enhanced';
 import { WorkshopConfig, Profile, ExpenseCategory } from '@/types/database';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkshopConfig } from '@/contexts/workshop-config';
@@ -62,7 +63,10 @@ import {
   UserCheck,
   UserX,
   Clock,
-  Mail
+  Mail,
+  CheckCircle,
+  XCircle,
+  Phone
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ColumnDef } from '@tanstack/react-table';
@@ -168,6 +172,15 @@ export function ConfigurationContent() {
   });
 
   const categories = categoriesResponse?.data || [];
+
+  // Fetch Twilio status
+  const { data: twilioStatusResponse, isLoading: twilioStatusLoading, refetch: refetchTwilioStatus } = useQuery({
+    queryKey: ['twilio-status'],
+    queryFn: () => whatsappApiEnhanced.getTwilioStatus(),
+    enabled: isAdmin()
+  });
+
+  const twilioStatus: TwilioStatus | null = twilioStatusResponse?.data || null;
 
   // Fetch pending approvals (only for super admin)
   const { data: pendingApprovalsResponse, isLoading: pendingApprovalsLoading } = useQuery({
@@ -1158,11 +1171,102 @@ export function ConfigurationContent() {
 
         {/* WhatsApp Tab */}
         <TabsContent value="whatsapp" className="space-y-6">
+          {/* Twilio Integration Status */}
           <Card>
             <CardHeader>
-              <CardTitle>Configuración de WhatsApp Business</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Phone className="h-5 w-5" />
+                Estado de Twilio
+              </CardTitle>
               <CardDescription>
-                Configura la integración con WhatsApp Business API
+                Integración con Twilio para envío de mensajes WhatsApp
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {twilioStatusLoading ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm text-muted-foreground">Verificando configuración...</span>
+                </div>
+              ) : twilioStatus?.configured ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                    <CheckCircle className="h-6 w-6 text-green-600" />
+                    <div>
+                      <p className="font-medium text-green-900 dark:text-green-100">
+                        Twilio Configurado
+                      </p>
+                      <p className="text-sm text-green-700 dark:text-green-300">
+                        Los mensajes se enviarán a través de Twilio WhatsApp API
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-3 border rounded-lg">
+                      <p className="text-sm text-muted-foreground">Modo</p>
+                      <p className="font-medium flex items-center gap-2">
+                        {twilioStatus.mode === 'sandbox' ? (
+                          <>
+                            <Badge variant="secondary">Sandbox</Badge>
+                            <span className="text-xs text-muted-foreground">(Desarrollo)</span>
+                          </>
+                        ) : (
+                          <>
+                            <Badge variant="default">Producción</Badge>
+                            <span className="text-xs text-muted-foreground">(En vivo)</span>
+                          </>
+                        )}
+                      </p>
+                    </div>
+                    {twilioStatus.whatsappNumber && (
+                      <div className="p-3 border rounded-lg">
+                        <p className="text-sm text-muted-foreground">Número WhatsApp</p>
+                        <p className="font-medium">{twilioStatus.whatsappNumber}</p>
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => refetchTwilioStatus()}
+                  >
+                    <Loader2 className="mr-2 h-4 w-4" />
+                    Verificar Conexión
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 p-4 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                    <XCircle className="h-6 w-6 text-yellow-600" />
+                    <div>
+                      <p className="font-medium text-yellow-900 dark:text-yellow-100">
+                        Twilio No Configurado
+                      </p>
+                      <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                        Configure las variables de entorno en Vercel para habilitar el envío de mensajes
+                      </p>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <p className="text-sm font-medium mb-2">Variables requeridas en Vercel:</p>
+                    <ul className="text-sm text-muted-foreground space-y-1 font-mono">
+                      <li>• TWILIO_ACCOUNT_SID</li>
+                      <li>• TWILIO_AUTH_TOKEN</li>
+                      <li>• TWILIO_WHATSAPP_NUMBER</li>
+                      <li>• TWILIO_USE_SANDBOX (true/false)</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* WhatsApp Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Configuración de WhatsApp en la Aplicación</CardTitle>
+              <CardDescription>
+                Configura las opciones de WhatsApp dentro de la aplicación
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1172,7 +1276,7 @@ export function ConfigurationContent() {
                     Habilitar WhatsApp
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    Activa las notificaciones por WhatsApp
+                    Activa las notificaciones por WhatsApp en la aplicación
                   </p>
                 </div>
                 <Switch
@@ -1188,7 +1292,7 @@ export function ConfigurationContent() {
 
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="whatsapp-number">Número WhatsApp Business</Label>
+                  <Label htmlFor="whatsapp-number">Número WhatsApp del Taller (para mostrar)</Label>
                   <Input
                     id="whatsapp-number"
                     value={configFormData.whatsapp_business_number || ''}
@@ -1199,46 +1303,34 @@ export function ConfigurationContent() {
                     disabled={!configFormData.whatsapp_enabled}
                   />
                   <p className="text-sm text-muted-foreground mt-1">
-                    Número de teléfono con código de país
-                  </p>
-                </div>
-
-                <div>
-                  <Label htmlFor="whatsapp-token">Token de API</Label>
-                  <div className="relative">
-                    <Input
-                      id="whatsapp-token"
-                      type={showWhatsAppToken ? 'text' : 'password'}
-                      value={configFormData.whatsapp_api_token || ''}
-                      onChange={(e) =>
-                        setConfigFormData({ ...configFormData, whatsapp_api_token: e.target.value })
-                      }
-                      placeholder="Token de WhatsApp Business API"
-                      disabled={!configFormData.whatsapp_enabled}
-                      className="pr-10"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3"
-                      onClick={() => setShowWhatsAppToken(!showWhatsAppToken)}
-                      disabled={!configFormData.whatsapp_enabled}
-                    >
-                      {showWhatsAppToken ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Token permanente de WhatsApp Business API
+                    Número que se mostrará a los clientes (el envío usa Twilio)
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* Sandbox Info Card */}
+          {twilioStatus?.mode === 'sandbox' && (
+            <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+              <CardContent className="pt-6">
+                <div className="flex gap-4">
+                  <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                      Modo Sandbox Activo
+                    </p>
+                    <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                      <li>• Los destinatarios deben unirse al sandbox primero</li>
+                      <li>• Envía &quot;join [código]&quot; al número de Twilio sandbox</li>
+                      <li>• Solo para pruebas de desarrollo</li>
+                      <li>• Para producción, solicita un número de WhatsApp Business aprobado</li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="flex justify-end">
             <Button
