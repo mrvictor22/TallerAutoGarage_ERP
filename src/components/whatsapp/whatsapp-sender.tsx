@@ -157,16 +157,21 @@ export function WhatsAppSender({ order, onMessageSent }: WhatsAppSenderProps) {
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
 
   // Auto-populate variables when template is selected
+  // TODO: Mejorar el auto-fill de variables para que tome automáticamente:
+  // - nombre/cliente: del owner de la orden
+  // - estado: del estado actual de la orden (traducido a español legible)
+  // - Mapear todas las variables comunes de las plantillas
   const handleTemplateChange = (templateId: string) => {
     setSelectedTemplateId(templateId);
     const template = templates.find(t => t.id === templateId);
-    
+
     if (template) {
       const autoVariables: Record<string, string> = {};
-      
+
       // Auto-fill common variables
       template.variables.forEach(variable => {
         switch (variable) {
+          case 'nombre':
           case 'cliente':
             autoVariables[variable] = order.owner.name;
             break;
@@ -174,6 +179,7 @@ export function WhatsAppSender({ order, onMessageSent }: WhatsAppSenderProps) {
             autoVariables[variable] = order.vehicle.plate;
             break;
           case 'ordenId':
+          case 'folio':
             autoVariables[variable] = order.folio;
             break;
           case 'total':
@@ -185,6 +191,10 @@ export function WhatsAppSender({ order, onMessageSent }: WhatsAppSenderProps) {
           case 'servicio':
             autoVariables[variable] = order.reason;
             break;
+          case 'estado':
+            // TODO: Traducir el estado a un texto legible en español
+            autoVariables[variable] = order.status;
+            break;
           case 'linkSeguimiento':
             autoVariables[variable] = `${window.location.origin}/seguimiento/${order.id}`;
             break;
@@ -192,7 +202,7 @@ export function WhatsAppSender({ order, onMessageSent }: WhatsAppSenderProps) {
             autoVariables[variable] = '';
         }
       });
-      
+
       setVariables(autoVariables);
     }
   };
