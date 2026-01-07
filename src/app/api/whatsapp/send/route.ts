@@ -98,11 +98,12 @@ export async function POST(request: NextRequest): Promise<Response> {
     // Verify owner has WhatsApp consent
     const { data: ownerData, error: ownerError } = await adminClient
       .from('owners')
-      .select('id, full_name, whatsapp_consent')
+      .select('id, name, whatsapp_consent')
       .eq('id', ownerId)
       .single()
 
     if (ownerError || !ownerData) {
+      console.error('Error fetching owner:', ownerError, 'ownerId:', ownerId)
       const response: ApiResponse = {
         success: false,
         error: 'Cliente no encontrado'
@@ -110,7 +111,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       return NextResponse.json(response, { status: 404 })
     }
 
-    const owner = ownerData as { id: string; full_name: string; whatsapp_consent: boolean }
+    const owner = ownerData as { id: string; name: string; whatsapp_consent: boolean }
 
     if (!owner.whatsapp_consent) {
       const response: ApiResponse = {
@@ -174,7 +175,7 @@ export async function POST(request: NextRequest): Promise<Response> {
             order_id: orderId,
             type: 'message_sent',
             title: 'Mensaje WhatsApp enviado',
-            description: `Mensaje enviado a ${owner.full_name}`,
+            description: `Mensaje enviado a ${owner.name}`,
             author_id: currentUserId
           })
       }
