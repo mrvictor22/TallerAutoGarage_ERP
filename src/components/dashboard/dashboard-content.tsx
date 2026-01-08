@@ -15,7 +15,8 @@ import {
   DollarSign,
   TrendingUp,
   Activity,
-  MessageSquare
+  MessageSquare,
+  Package
 } from 'lucide-react';
 import { WelcomeModal } from './welcome-modal';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -207,17 +208,27 @@ export function DashboardContent() {
         />
       </div>
 
-      {/* Revenue KPIs */}
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* Revenue KPIs - Ganancias = solo mano de obra */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <KPICard
-          title="Ingresos del Mes"
+          title="Ganancias del Mes"
           value={formatCurrency(kpis?.revenueThisMonth || 0)}
           icon={DollarSign}
         />
         <KPICard
-          title="Ingresos Totales"
+          title="Ganancias Totales"
           value={formatCurrency(kpis?.totalRevenue || 0)}
           icon={TrendingUp}
+        />
+        <KPICard
+          title="Repuestos del Mes"
+          value={formatCurrency(kpis?.partsExpenseThisMonth || 0)}
+          icon={Package}
+        />
+        <KPICard
+          title="Repuestos Totales"
+          value={formatCurrency(kpis?.totalPartsExpense || 0)}
+          icon={Package}
         />
       </div>
 
