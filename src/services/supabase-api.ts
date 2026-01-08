@@ -1025,9 +1025,15 @@ export const dashboardApi = {
       }
 
       // Get all budget lines to calculate labor (profit) and parts separately
+      type BudgetLineWithOrder = {
+        total: number
+        type: string
+        orders: { payment_status: string | null; delivery_date: string | null }
+      }
       const { data: budgetLines, error: budgetError } = await supabase
         .from('budget_lines')
         .select('total, type, orders!inner(payment_status, delivery_date)')
+        .returns<BudgetLineWithOrder[]>()
 
       if (budgetError) {
         console.error('Error fetching budget lines:', budgetError)
