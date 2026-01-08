@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
 import { ordersApi, OrderFilters } from '@/services/supabase-api';
 import { OrderWithRelations, OrderStatus } from '@/types/database';
@@ -79,13 +79,61 @@ const orderStatuses: { value: OrderStatus; label: string }[] = [
 
 export function OrdersListContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const { hasPermission } = useAuthStore();
   const [view, setView] = useState<'table' | 'cards'>('table');
-  const [filters, setFilters] = useState<OrderFilters>({});
   const [showFilters, setShowFilters] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<OrderWithRelations | null>(null);
+
+  // Parse URL query params to initialize filters
+  const initialFilters = useMemo((): OrderFilters => {
+    const filters: OrderFilters = {};
+
+    const status = searchParams.get('status');
+    if (status) {
+      filters.status = [status as OrderStatus];
+    }
+
+    const pendingPayment = searchParams.get('pending_payment');
+    if (pendingPayment === 'true') {
+      filters.pending_payment = true;
+    }
+
+    const completedToday = searchParams.get('completed_today');
+    if (completedToday === 'true') {
+      filters.completed_today = true;
+    }
+
+    const dateFrom = searchParams.get('date_from');
+    if (dateFrom) {
+      filters.date_from = dateFrom;
+    }
+
+    const dateTo = searchParams.get('date_to');
+    if (dateTo) {
+      filters.date_to = dateTo;
+    }
+
+    const search = searchParams.get('search');
+    if (search) {
+      filters.search = search;
+    }
+
+    return filters;
+  }, [searchParams]);
+
+  const [filters, setFilters] = useState<OrderFilters>(initialFilters);
+
+  // Update filters when URL params change
+  useEffect(() => {
+    setFilters(initialFilters);
+    // Show filters panel if there are URL params
+    if (Object.keys(initialFilters).length > 0) {
+      setShowFilters(true);
+    }
+  }, [initialFilters]);
 
   // Permission checks
   const canArchive = hasPermission('orders', 'archive');
@@ -381,6 +429,8 @@ export function OrdersListContent() {
 
   const clearFilters = () => {
     setFilters({});
+    // Clear URL params
+    router.replace('/es/ordenes');
   };
 
   const hasActiveFilters = Object.keys(filters).length > 0;
@@ -496,13 +546,56 @@ export function OrdersListContent() {
         </Card>
       )}
 
+      {/* Active Filter Tags */}
+      {hasActiveFilters && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground">Filtros activos:</span>
+          {filters.status?.map((s) => (
+            <Badge key={s} variant="secondary" className="gap-1">
+              {orderStatuses.find((os) => os.value === s)?.label || s}
+              <button
+                onClick={() => updateFilter('status', undefined)}
+                className="ml-1 hover:text-destructive"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+          {filters.pending_payment && (
+            <Badge variant="secondary" className="gap-1 bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+              Pendientes de Pago
+              <button
+                onClick={() => {
+                  updateFilter('pending_payment', undefined);
+                  router.replace('/es/ordenes');
+                }}
+                className="ml-1 hover:text-destructive"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {filters.completed_today && (
+            <Badge variant="secondary" className="gap-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+              Completadas Hoy
+              <button
+                onClick={() => {
+                  updateFilter('completed_today', undefined);
+                  router.replace('/es/ordenes');
+                }}
+                className="ml-1 hover:text-destructive"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+        </div>
+      )}
+
       {/* View Toggle and Stats */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span>{orders.length} órdenes encontradas</span>
-          {hasActiveFilters && (
-            <span className="hidden sm:inline">• Filtros aplicados</span>
-          )}
         </div>
         <div className="flex items-center justify-between sm:justify-end gap-2">
           <Button variant="outline" size="sm" onClick={() => handleExport(orders)} className="sm:hidden">

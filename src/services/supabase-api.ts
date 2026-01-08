@@ -62,6 +62,8 @@ export interface OrderFilters {
   vehicle_id?: string
   payment_status?: string
   show_archived?: boolean
+  pending_payment?: boolean
+  completed_today?: boolean
 }
 
 export interface OwnerFilters {
@@ -384,11 +386,20 @@ export const ordersApi = {
     if (filters.payment_status) {
       query = query.eq('payment_status', filters.payment_status)
     }
+    if (filters.pending_payment) {
+      query = query.eq('payment_status', 'pending')
+    }
     if (filters.date_from) {
       query = query.gte('entry_date', filters.date_from)
     }
     if (filters.date_to) {
       query = query.lte('entry_date', filters.date_to)
+    }
+    if (filters.completed_today) {
+      const today = new Date()
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString()
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999).toISOString()
+      query = query.gte('updated_at', startOfDay).lte('updated_at', endOfDay)
     }
     if (filters.search) {
       query = query.or(`folio.ilike.%${filters.search}%,reason.ilike.%${filters.search}%`)
