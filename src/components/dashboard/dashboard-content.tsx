@@ -22,20 +22,22 @@ import { WelcomeModal } from './welcome-modal';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { TimelineEntry, WhatsAppMessage, Owner, Order } from '@/types/database';
 
-function KPICard({ 
-  title, 
-  value, 
+function KPICard({
+  title,
+  value,
   icon,
-  trend 
+  trend,
+  href
 }: {
   title: string;
   value: string | number;
   icon: React.ComponentType<{ className?: string }>;
   description?: string;
   trend?: string;
+  href?: string;
 }) {
-  return (
-    <Card>
+  const cardContent = (
+    <Card className={href ? "cursor-pointer transition-colors hover:bg-accent/50" : ""}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
         {React.createElement(icon, { className: "h-4 w-4 text-muted-foreground" })}
@@ -51,6 +53,12 @@ function KPICard({
       </CardContent>
     </Card>
   );
+
+  if (href) {
+    return <Link href={href}>{cardContent}</Link>;
+  }
+
+  return cardContent;
 }
 
 function RecentActivityItem({ activity }: { activity: TimelineEntry & { author?: { full_name: string } } }) {
@@ -190,21 +198,25 @@ export function DashboardContent() {
           title="Órdenes Abiertas"
           value={kpis?.openOrders || 0}
           icon={FileText}
+          href="/es/ordenes?status=new"
         />
         <KPICard
           title="En Proceso"
           value={kpis?.inProgressOrders || 0}
           icon={Clock}
+          href="/es/ordenes?status=in_progress"
         />
         <KPICard
           title="Completadas Hoy"
           value={kpis?.completedToday || 0}
           icon={Truck}
+          href="/es/ordenes?status=delivered&completed_today=true"
         />
         <KPICard
           title="Pendientes de Pago"
           value={kpis?.pendingPayment || 0}
           icon={CheckCircle}
+          href="/es/ordenes?pending_payment=true"
         />
       </div>
 
