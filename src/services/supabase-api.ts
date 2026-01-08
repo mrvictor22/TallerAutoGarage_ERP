@@ -26,7 +26,8 @@ import {
   WhatsAppTemplate,
   WhatsAppMessage,
   Profile,
-  WorkshopConfig
+  WorkshopConfig,
+  Notification,
 } from '@/types/database'
 
 // ============================================
@@ -1588,4 +1589,116 @@ export const expenseCategoriesApi = {
 
     return createSuccessResponse(null, 'Categoría eliminada exitosamente')
   }
+}
+
+// ============================================
+// NOTIFICATIONS API
+// ============================================
+
+export const notificationsApi = {
+  getNotifications: async (
+    limit: number = 20,
+    includeRead: boolean = true
+  ): Promise<ApiResponse<Notification[]>> => {
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return createErrorResponse('No hay sesión activa')
+    }
+
+    let query = supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (!includeRead) {
+      query = query.eq('read', false)
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      return createErrorResponse(error.message)
+    }
+
+    return createSuccessResponse(data)
+  },
+
+  getUnreadCount: async (): Promise<ApiResponse<number>> => {
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return createErrorResponse('No hay sesión activa')
+    }
+
+    const { count, error } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('read', false)
+
+    if (error) {
+      return createErrorResponse(error.message)
+    }
+
+    return createSuccessResponse(count || 0)
+  },
+
+  markAsRead: async (id: string): Promise<ApiResponse<null>> => {
+    const supabase = createClient()
+
+    const { error } = await supabase
+      .from('notifications')
+      .update({ read: true, read_at: new Date().toISOString() })
+      .eq('id', id)
+
+    if (error) {
+      return createErrorResponse(error.message)
+    }
+
+    return createSuccessResponse(null)
+  },
+
+  markAllAsRead: async (): Promise<ApiResponse<null>> => {
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return createErrorResponse('No hay sesión activa')
+    }
+
+    const { error } = await supabase
+      .from('notifications')
+      .update({ read: true, read_at: new Date().toISOString() })
+      .eq('user_id', user.id)
+      .eq('read', false)
+
+    if (error) {
+      return createErrorResponse(error.message)
+    }
+
+    return createSuccessResponse(null, 'Todas las notificaciones marcadas como leídas')
+  },
+
+  deleteNotification: async (id: string): Promise<ApiResponse<null>> => {
+    const supabase = createClient()
+
+    const { error } = await supabase.from('notifications').delete().eq('id', id)
+
+    if (error) {
+      return createErrorResponse(error.message)
+    }
+
+    return createSuccessResponse(null)
+  },
 }
