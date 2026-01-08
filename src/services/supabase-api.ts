@@ -982,8 +982,12 @@ export interface DashboardKPIs {
   inProgressOrders: number
   completedToday: number
   pendingPayment: number
+  // Ganancias = solo mano de obra (profit real del taller)
   totalRevenue: number
   revenueThisMonth: number
+  // Repuestos = costo de partes (se transfiere al cliente)
+  totalPartsExpense: number
+  partsExpenseThisMonth: number
   totalCustomers: number
   totalVehicles: number
 }
@@ -1020,6 +1024,21 @@ export const dashboardApi = {
         console.error('Error counting vehicles:', vehiclesError)
       }
 
+      // Get all budget lines to calculate labor (profit) and parts separately
+      type BudgetLineWithOrder = {
+        total: number
+        type: string
+        orders: { payment_status: string | null; delivery_date: string | null }
+      }
+      const { data: budgetLines, error: budgetError } = await supabase
+        .from('budget_lines')
+        .select('total, type, orders!inner(payment_status, delivery_date)')
+        .returns<BudgetLineWithOrder[]>()
+
+      if (budgetError) {
+        console.error('Error fetching budget lines:', budgetError)
+      }
+
       const today = new Date().toISOString().split('T')[0]
       const thisMonthStart = new Date()
       thisMonthStart.setDate(1)
@@ -1044,14 +1063,28 @@ export const dashboardApi = {
         pendingPayment: orders?.filter(o =>
           o.payment_status && o.payment_status !== 'paid'
         ).length || 0,
-        // Ingresos totales (suma de amount_paid de todas las órdenes)
-        totalRevenue: orders?.reduce((sum, o) => sum + (o.amount_paid || 0), 0) || 0,
-        // Ingresos del mes (suma de amount_paid de órdenes entregadas este mes)
-        revenueThisMonth: orders?.filter(o => {
-          if (!o.delivery_date) return false
-          const deliveryDate = new Date(o.delivery_date)
+        // Ganancias = solo mano de obra de órdenes pagadas
+        totalRevenue: budgetLines?.filter(bl =>
+          bl.type === 'labor' && bl.orders?.payment_status === 'paid'
+        ).reduce((sum, bl) => sum + (bl.total || 0), 0) || 0,
+        // Ganancias del mes = mano de obra de órdenes entregadas este mes
+        revenueThisMonth: budgetLines?.filter(bl => {
+          if (bl.type !== 'labor') return false
+          if (!bl.orders?.delivery_date) return false
+          const deliveryDate = new Date(bl.orders.delivery_date)
           return deliveryDate >= thisMonthStart
-        }).reduce((sum, o) => sum + (o.amount_paid || 0), 0) || 0,
+        }).reduce((sum, bl) => sum + (bl.total || 0), 0) || 0,
+        // Repuestos totales de órdenes pagadas
+        totalPartsExpense: budgetLines?.filter(bl =>
+          bl.type === 'parts' && bl.orders?.payment_status === 'paid'
+        ).reduce((sum, bl) => sum + (bl.total || 0), 0) || 0,
+        // Repuestos del mes = partes de órdenes entregadas este mes
+        partsExpenseThisMonth: budgetLines?.filter(bl => {
+          if (bl.type !== 'parts') return false
+          if (!bl.orders?.delivery_date) return false
+          const deliveryDate = new Date(bl.orders.delivery_date)
+          return deliveryDate >= thisMonthStart
+        }).reduce((sum, bl) => sum + (bl.total || 0), 0) || 0,
         totalCustomers: customersCount || 0,
         totalVehicles: vehiclesCount || 0
       }
