@@ -21,10 +21,10 @@ import {
   User,
   LogOut,
   Settings,
-  Bell,
   Search,
   Menu
 } from 'lucide-react';
+import { NotificationsDropdown } from '@/components/notifications';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -118,16 +118,8 @@ export function Header({ onMenuClick }: HeaderProps) {
 
       {/* Right side */}
       <div className="flex items-center gap-2 md:gap-4">
-        {/* Notifications - increased touch target */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative h-11 w-11 min-w-[44px] min-h-[44px]"
-          aria-label="Notificaciones"
-        >
-          <Bell className="h-5 w-5" />
-          <span className="absolute top-2 right-2 h-3 w-3 rounded-full bg-red-500 text-xs" aria-hidden="true"></span>
-        </Button>
+        {/* Notifications dropdown */}
+        <NotificationsDropdown />
 
         {/* Keyboard shortcuts help - hidden on mobile */}
         <div className="hidden md:block">

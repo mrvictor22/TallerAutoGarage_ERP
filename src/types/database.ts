@@ -34,6 +34,19 @@ export type TimelineEntryType =
 export type PaymentMethod = 'cash' | 'card' | 'transfer' | 'check' | 'credit'
 export type PaymentStatus = 'pending' | 'partial' | 'paid' | 'refunded'
 
+// Notification types
+export type NotificationType =
+  | 'order_created'           // Nueva orden creada
+  | 'order_status_changed'    // Cambio de estado en orden
+  | 'budget_approved'         // Presupuesto aprobado por cliente
+  | 'budget_missing'          // Presupuesto no registrado (sin líneas)
+  | 'payment_received'        // Pago recibido
+  | 'payment_reminder'        // Recordatorio de registrar pago (quality_check/ready)
+  | 'order_ready'             // Orden lista para entrega
+  | 'order_stalled'           // Orden estancada (sin actividad)
+  | 'vehicle_ready'           // Vehículo listo para recoger
+  | 'whatsapp_failed'         // Mensaje WhatsApp fallido
+
 export interface Database {
   public: {
     Tables: {
@@ -809,6 +822,44 @@ export interface Database {
           created_at?: string
         }
       }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          type: NotificationType
+          title: string
+          message: string
+          link: string | null
+          metadata: Json
+          read: boolean
+          created_at: string
+          read_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: NotificationType
+          title: string
+          message: string
+          link?: string | null
+          metadata?: Json
+          read?: boolean
+          created_at?: string
+          read_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          type?: NotificationType
+          title?: string
+          message?: string
+          link?: string | null
+          metadata?: Json
+          read?: boolean
+          created_at?: string
+          read_at?: string | null
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -832,6 +883,7 @@ export interface Database {
       timeline_entry_type: TimelineEntryType
       payment_method: PaymentMethod
       payment_status: PaymentStatus
+      notification_type: NotificationType
     }
   }
 }
@@ -850,6 +902,7 @@ export type WhatsAppMessage = Database['public']['Tables']['whatsapp_messages'][
 export type WorkshopConfig = Database['public']['Tables']['workshop_config']['Row']
 export type ExpenseCategory = Database['public']['Tables']['expense_categories']['Row']
 export type Expense = Database['public']['Tables']['expenses']['Row']
+export type Notification = Database['public']['Tables']['notifications']['Row']
 
 // Insert types
 export type ProfileInsert = Database['public']['Tables']['profiles']['Insert']
@@ -859,6 +912,7 @@ export type OrderInsert = Database['public']['Tables']['orders']['Insert']
 export type BudgetLineInsert = Database['public']['Tables']['budget_lines']['Insert']
 export type TimelineEntryInsert = Database['public']['Tables']['timeline_entries']['Insert']
 export type PaymentInsert = Database['public']['Tables']['payments']['Insert']
+export type NotificationInsert = Database['public']['Tables']['notifications']['Insert']
 
 // Update types
 export type ProfileUpdate = Database['public']['Tables']['profiles']['Update']
