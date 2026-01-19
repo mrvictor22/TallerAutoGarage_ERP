@@ -675,7 +675,7 @@ CREATE POLICY "Authenticated users can insert timeline" ON timeline_entries FOR 
 
 -- Payments policies
 CREATE POLICY "Authenticated users can view payments" ON payments FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Admin and reception can manage payments" ON payments FOR ALL TO authenticated USING (public.user_role() IN ('admin', 'reception'));
+CREATE POLICY "Authorized roles can manage payments" ON payments FOR ALL TO authenticated USING (public.user_role() IN ('admin', 'reception', 'mechanic_lead')) WITH CHECK (public.user_role() IN ('admin', 'reception', 'mechanic_lead'));
 
 -- Parts invoices policies
 CREATE POLICY "Authenticated users can view parts invoices" ON parts_invoices FOR SELECT TO authenticated USING (true);

@@ -60,6 +60,8 @@ const rolePermissions: Record<UserRole, string[]> = {
     // Budget
     'budget:read',
     'budget:approve',
+    // Payments - can manage payments
+    'payments:*',
     // Other permissions
     'timeline:*',
     'parts:*',
