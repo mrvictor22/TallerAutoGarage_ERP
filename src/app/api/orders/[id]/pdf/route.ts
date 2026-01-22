@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { generateOrderPDFTemplate } from '@/lib/pdf/order-pdf-template';
 import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
+import chromium from '@sparticuz/chromium-min';
 import type { OrderWithRelations, WorkshopConfig } from '@/types/database';
 
 interface RouteContext {
@@ -10,6 +10,10 @@ interface RouteContext {
     id: string;
   }>;
 }
+
+// URL del binario de Chromium para serverless (versión 131)
+const CHROMIUM_PACK_URL =
+  'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar';
 
 export async function GET(
   request: NextRequest,
@@ -82,11 +86,14 @@ export async function GET(
       workshop,
     });
 
+    // Obtener el path del ejecutable de Chromium
+    const executablePath = await chromium.executablePath(CHROMIUM_PACK_URL);
+
     // Inicializar Puppeteer con Chromium para serverless
     browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: { width: 1280, height: 720 },
-      executablePath: await chromium.executablePath(),
+      executablePath,
       headless: true,
     });
 
