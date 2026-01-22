@@ -84,6 +84,36 @@ function mapTimelineEntry(entry: DBTimelineEntry & { author?: { full_name: strin
 
 function OrderSummary({ order }: { order: OrderWithRelations }) {
   const queryClient = useQueryClient();
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  const handleGeneratePdf = async () => {
+    setIsGeneratingPdf(true);
+    try {
+      const response = await fetch(`/api/orders/${order.id}/pdf`);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Error al generar el PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `orden-${order.folio || order.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success('PDF generado exitosamente');
+    } catch (error) {
+      console.error('Error al generar PDF:', error);
+      toast.error(error instanceof Error ? error.message : 'Error al generar el PDF');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ status, notes }: { status: string; notes?: string }) =>
@@ -302,9 +332,23 @@ function OrderSummary({ order }: { order: OrderWithRelations }) {
               <Printer className="mr-2 h-4 w-4" />
               Imprimir
             </Button>
-            <Button className="w-full" variant="outline">
-              <Download className="mr-2 h-4 w-4" />
-              Generar PDF
+            <Button
+              className="w-full"
+              variant="outline"
+              onClick={handleGeneratePdf}
+              disabled={isGeneratingPdf}
+            >
+              {isGeneratingPdf ? (
+                <>
+                  <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Generando...
+                </>
+              ) : (
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  Generar PDF
+                </>
+              )}
             </Button>
             {order.owner.whatsapp_consent && (
               <Button className="w-full" variant="outline">
