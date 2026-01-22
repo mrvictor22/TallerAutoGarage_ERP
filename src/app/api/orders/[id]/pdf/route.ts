@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { generateOrderPDFTemplate } from '@/lib/pdf/order-pdf-template';
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
 import type { OrderWithRelations, WorkshopConfig } from '@/types/database';
 
 interface RouteContext {
@@ -81,15 +82,12 @@ export async function GET(
       workshop,
     });
 
-    // Inicializar Puppeteer
+    // Inicializar Puppeteer con Chromium para serverless
     browser = await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: { width: 1280, height: 720 },
+      executablePath: await chromium.executablePath(),
       headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-      ],
     });
 
     const page = await browser.newPage();
