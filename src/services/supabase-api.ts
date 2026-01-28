@@ -1328,15 +1328,13 @@ export const usersApi = {
     return createSuccessResponse(data)
   },
 
-  approveUser: async (id: string, approvedById: string): Promise<ApiResponse<Profile>> => {
+  approveUser: async (id: string, _approvedById: string): Promise<ApiResponse<Profile>> => {
     const supabase = createClient()
 
     const { data, error } = await supabase
       .from('profiles')
       .update({
-        is_approved: true,
-        approved_by: approvedById,
-        approved_at: new Date().toISOString()
+        is_approved: true
       })
       .eq('id', id)
       .select()

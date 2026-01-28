@@ -144,9 +144,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       role,
       phone: phone || null,
       is_active: true,
-      is_approved: true,
-      approved_by: currentUserId,
-      approved_at: new Date().toISOString()
+      is_approved: true
     }
 
     // Use a fresh admin client reference to work around TypeScript control flow analysis
