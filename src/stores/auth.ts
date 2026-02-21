@@ -177,7 +177,7 @@ export const useAuthStore = create<AuthState>()(
         // Determine the base URL for email redirect
         const baseUrl = typeof window !== 'undefined'
           ? window.location.origin
-          : process.env.NEXT_PUBLIC_SITE_URL || 'https://tallerautogarage.apexcodelabs.com'
+          : process.env.NEXT_PUBLIC_SITE_URL || ''
 
         try {
           const { data, error } = await supabase.auth.signUp({
@@ -299,7 +299,7 @@ export const useAuthStore = create<AuthState>()(
         // Determine the base URL for email redirect
         const baseUrl = typeof window !== 'undefined'
           ? window.location.origin
-          : process.env.NEXT_PUBLIC_SITE_URL || 'https://tallerautogarage.apexcodelabs.com'
+          : process.env.NEXT_PUBLIC_SITE_URL || ''
 
         try {
           const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -348,7 +348,7 @@ export const useAuthStore = create<AuthState>()(
         // Determine the base URL for email redirect
         const baseUrl = typeof window !== 'undefined'
           ? window.location.origin
-          : process.env.NEXT_PUBLIC_SITE_URL || 'https://tallerautogarage.apexcodelabs.com'
+          : process.env.NEXT_PUBLIC_SITE_URL || ''
 
         try {
           const { error } = await supabase.auth.updateUser({
@@ -377,7 +377,7 @@ export const useAuthStore = create<AuthState>()(
         // Determine the base URL for email redirect
         const baseUrl = typeof window !== 'undefined'
           ? window.location.origin
-          : process.env.NEXT_PUBLIC_SITE_URL || 'https://tallerautogarage.apexcodelabs.com'
+          : process.env.NEXT_PUBLIC_SITE_URL || ''
 
         try {
           const { error } = await supabase.auth.signInWithOtp({

@@ -90,6 +90,64 @@ When querying related data with ambiguous foreign keys, use explicit hints:
 `)
 ```
 
+## Estrategia Multi-Taller (Branching por Cliente)
+
+Cada taller cliente tiene su propia rama de deployment y proyecto en Vercel. **Esta es una directriz permanente del proyecto.**
+
+### Arquitectura
+
+```
+master (código compartido, source of truth)
+  ├── deploy/autogarage   → Vercel: taller-auto-garage-erp
+  ├── deploy/autosymas    → Vercel: taller_autos_y_mas
+  └── deploy/[futuro]     → Vercel: nuevo proyecto por taller
+```
+
+### Talleres Activos
+
+| Taller | Rama | Proyecto Vercel | Supabase |
+|--------|------|----------------|----------|
+| Taller Autogarage | `deploy/autogarage` | taller-auto-garage-erp | psyxlneicggekuchfqah |
+| Autos y Mas | `deploy/autosymas` | taller_autos_y_mas | (su propia instancia) |
+
+### Reglas de Branching
+
+- **`master`** = código fuente canónico. Aquí se desarrollan TODOS los features y fixes
+- **`deploy/{slug}`** = rama de producción por taller. Son mirrors de master
+- **`feature/*`**, **`fix/*`**, **`hotfix/*`** = ramas temporales de desarrollo, siempre hacia master
+- **NUNCA** desarrollar features directamente en una rama `deploy/*`
+- Las personalizaciones por taller son la excepción, no la regla. Usar `workshop_config` para diferenciación
+
+### Naming Convention
+
+| Tipo | Patrón | Ejemplo |
+|------|--------|---------|
+| Deploy por taller | `deploy/{slug-taller}` | `deploy/autogarage` |
+| Feature | `feature/{descripcion}` | `feature/expense-tracking` |
+| Bugfix | `fix/{descripcion}` | `fix/pdf-generation` |
+| Hotfix | `hotfix/{descripcion}` | `hotfix/login-crash` |
+
+### Workflow de Desarrollo
+
+1. Crear feature branch desde `master`
+2. Desarrollar y probar localmente
+3. Merge a `master` (via PR o directo)
+4. Distribuir a talleres: `./scripts/distribute.sh` (o selectivamente: `./scripts/distribute.sh autogarage`)
+5. Vercel deployea automáticamente al detectar push en la rama `deploy/*`
+
+### Variables de Entorno por Taller
+
+Cada proyecto de Vercel tiene sus propias env vars. Ver `.env.example` para la lista completa.
+**IMPORTANTE**: No hardcodear URLs o credenciales de un taller específico en el código. Siempre usar `process.env`.
+
+### Onboarding de Nuevo Taller
+
+1. Crear proyecto Supabase + ejecutar `supabase/schema-complete.sql` + insertar `workshop_config`
+2. Crear rama: `git checkout master && git checkout -b deploy/{slug} && git push -u origin deploy/{slug}`
+3. Crear proyecto Vercel apuntando a la nueva rama + configurar env vars (ver `.env.example`)
+4. Agregar slug al array `WORKSHOPS` en `scripts/distribute.sh`
+5. Verificar deployment
+
 ## Git Commit Rules
 
 - **NO incluir "Co-Authored-By"** en los commits

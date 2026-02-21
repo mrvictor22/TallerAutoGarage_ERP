@@ -79,7 +79,11 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     // Define redirect URL for invitation emails
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tallerautogarage.apexcodelabs.com'
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+    if (!siteUrl) {
+      const response: ApiResponse = { success: false, error: 'NEXT_PUBLIC_SITE_URL no está configurada' }
+      return NextResponse.json(response, { status: 500 })
+    }
     const redirectTo = `${siteUrl}/auth/callback`
 
     let userId: string

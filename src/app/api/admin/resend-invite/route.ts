@@ -55,7 +55,10 @@ export async function POST(request: NextRequest): Promise<Response> {
     const userProfile = userProfileResult.data as { full_name: string; role: string } | null
 
     // Define redirect URL
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tallerautogarage.apexcodelabs.com'
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+    if (!siteUrl) {
+      return NextResponse.json({ success: false, error: 'NEXT_PUBLIC_SITE_URL no está configurada' }, { status: 500 })
+    }
     const redirectTo = `${siteUrl}/auth/callback`
 
     // Generate a new invite link for the user
