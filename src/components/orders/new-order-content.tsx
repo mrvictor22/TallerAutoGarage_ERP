@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ordersApi, ownersApi, vehiclesApi, configApi, usersApi } from '@/services/supabase-api';
 import { OrderInsert, Owner, Vehicle, OwnerInsert, VehicleInsert } from '@/types/database';
+import { VehicleInspection as VehicleInspectionData, VehicleBodyType } from '@/types/inspection';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,9 +40,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Check, ChevronsUpDown, User, Car, FileText, Loader2, Plus, Phone, Mail } from 'lucide-react';
+import { ArrowLeft, Check, ChevronsUpDown, User, Car, FileText, ClipboardCheck, Loader2, Plus, Phone, Mail, SkipForward } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { VehicleInspection } from '@/components/inspection/vehicle-inspection';
 
 export function NewOrderContent() {
   const router = useRouter();
@@ -55,9 +57,13 @@ export function NewOrderContent() {
   const [customerComplaints, setCustomerComplaints] = useState('');
   const [technicianId, setTechnicianId] = useState<string>('');
   const [entryMileage, setEntryMileage] = useState('');
-  const [fuelLevel, setFuelLevel] = useState('');
+  const [fuelLevel, setFuelLevel] = useState(0);
   const [commitmentDate, setCommitmentDate] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
+
+  // Inspection state
+  const [inspectionData, setInspectionData] = useState<VehicleInspectionData | null>(null);
+  const [vehicleBodyType, setVehicleBodyType] = useState<VehicleBodyType | null>(null);
 
   // Modal states
   const [showNewOwnerModal, setShowNewOwnerModal] = useState(false);
@@ -263,8 +269,8 @@ export function NewOrderContent() {
     createVehicleMutation.mutate(vehicleData);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
 
     if (!selectedOwnerId || !selectedVehicleId || !reason) {
       toast.error('Por favor completa todos los campos requeridos');
@@ -278,9 +284,11 @@ export function NewOrderContent() {
       customer_complaints: customerComplaints || null,
       technician_id: technicianId || null,
       entry_mileage: entryMileage ? parseInt(entryMileage) : null,
-      fuel_level: fuelLevel ? parseInt(fuelLevel) : null,
+      fuel_level: fuelLevel || null,
       commitment_date: commitmentDate || null,
       internal_notes: internalNotes || null,
+      inspection_data: inspectionData as unknown as OrderInsert['inspection_data'],
+      vehicle_body_type: vehicleBodyType || null,
       status: 'new',
       entry_date: new Date().toISOString(),
       subtotal: 0,
@@ -300,9 +308,16 @@ export function NewOrderContent() {
     createOrderMutation.mutate(orderData);
   };
 
+  const handleSkipInspection = () => {
+    handleSubmit();
+  };
+
   const canProceedToStep2 = selectedOwnerId !== '';
   const canProceedToStep3 = selectedVehicleId !== '';
+  const canProceedToStep4 = reason !== '';
   const canSubmit = reason !== '';
+
+  const TOTAL_STEPS = 4;
 
   return (
     <div className="space-y-4 md:space-y-6 max-w-4xl mx-auto">
@@ -324,7 +339,8 @@ export function NewOrderContent() {
         {[
           { num: 1, label: 'Cliente', mobileLabel: 'Cliente', icon: User },
           { num: 2, label: 'Vehículo', mobileLabel: 'Vehículo', icon: Car },
-          { num: 3, label: 'Servicio', mobileLabel: 'Servicio', icon: FileText }
+          { num: 3, label: 'Servicio', mobileLabel: 'Servicio', icon: FileText },
+          { num: 4, label: 'Inspección', mobileLabel: 'Inspec.', icon: ClipboardCheck }
         ].map((step, index) => (
           <div key={step.num} className="flex items-center flex-1">
             <div className="flex flex-col items-center flex-1">
@@ -354,7 +370,7 @@ export function NewOrderContent() {
                 <span className="sm:hidden">{step.mobileLabel}</span>
               </span>
             </div>
-            {index < 2 && (
+            {index < TOTAL_STEPS - 1 && (
               <div
                 className={cn(
                   'h-0.5 flex-1 mx-2 md:mx-4',
@@ -366,7 +382,7 @@ export function NewOrderContent() {
         ))}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="space-y-6">
         {/* Step 1: Select Owner */}
         {currentStep === 1 && (
           <Card>
@@ -637,33 +653,6 @@ export function NewOrderContent() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="mileage">Kilometraje de Entrada</Label>
-                  <Input
-                    id="mileage"
-                    type="number"
-                    inputMode="numeric"
-                    value={entryMileage}
-                    onChange={(e) => setEntryMileage(e.target.value)}
-                    placeholder="125000"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="fuel">Nivel de Combustible (%)</Label>
-                  <Input
-                    id="fuel"
-                    type="number"
-                    inputMode="numeric"
-                    min="0"
-                    max="100"
-                    value={fuelLevel}
-                    onChange={(e) => setFuelLevel(e.target.value)}
-                    placeholder="50"
-                  />
-                </div>
-              </div>
-
               <div>
                 <Label htmlFor="technician">Técnico Asignado</Label>
                 <Select
@@ -705,23 +694,95 @@ export function NewOrderContent() {
                 />
               </div>
 
-              <div className="flex justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setCurrentStep(2)}
+                  className="w-full sm:w-auto"
                 >
                   Anterior
                 </Button>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleSubmit}
+                    disabled={!canSubmit || createOrderMutation.isPending}
+                    className="w-full sm:w-auto"
+                  >
+                    {createOrderMutation.isPending && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    <SkipForward className="mr-2 h-4 w-4" />
+                    Crear sin Inspección
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => setCurrentStep(4)}
+                    disabled={!canProceedToStep4}
+                    className="w-full sm:w-auto"
+                  >
+                    Siguiente
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 4: Inspection (Optional) */}
+        {currentStep === 4 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Paso 4: Inspección del Vehículo</CardTitle>
+              <CardDescription>
+                Registra el estado del vehículo al ingreso (opcional)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <VehicleInspection
+                value={inspectionData}
+                onChange={setInspectionData}
+                fuelLevel={fuelLevel}
+                onFuelLevelChange={setFuelLevel}
+                entryMileage={entryMileage}
+                onEntryMileageChange={setEntryMileage}
+                bodyType={vehicleBodyType}
+                onBodyTypeChange={setVehicleBodyType}
+              />
+
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-between pt-4">
                 <Button
-                  type="submit"
-                  disabled={!canSubmit || createOrderMutation.isPending}
+                  type="button"
+                  variant="outline"
+                  onClick={() => setCurrentStep(3)}
+                  className="w-full sm:w-auto"
                 >
-                  {createOrderMutation.isPending && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Crear Orden
+                  Anterior
                 </Button>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={handleSkipInspection}
+                    disabled={createOrderMutation.isPending}
+                    className="w-full sm:w-auto"
+                  >
+                    <SkipForward className="mr-2 h-4 w-4" />
+                    Saltar Inspección
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={!canSubmit || createOrderMutation.isPending}
+                    className="w-full sm:w-auto"
+                  >
+                    {createOrderMutation.isPending && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    Crear Orden
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -742,7 +803,7 @@ export function NewOrderContent() {
             {selectedVehicle && (
               <div>
                 <span className="text-muted-foreground">Vehículo:</span>
-                <span className="ml-2 font-medium">
+                <span className="ml-2 font-medium break-words">
                   {selectedVehicle.brand} {selectedVehicle.model} ({selectedVehicle.plate})
                 </span>
               </div>
@@ -751,6 +812,12 @@ export function NewOrderContent() {
               <div>
                 <span className="text-muted-foreground">Motivo:</span>
                 <p className="mt-1 text-foreground">{reason}</p>
+              </div>
+            )}
+            {inspectionData && inspectionData.markers.length > 0 && (
+              <div>
+                <span className="text-muted-foreground">Daños registrados:</span>
+                <span className="ml-2 font-medium">{inspectionData.markers.length}</span>
               </div>
             )}
           </CardContent>

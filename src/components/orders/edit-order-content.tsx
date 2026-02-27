@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -18,8 +19,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
+import { VehicleInspection } from '@/components/inspection/vehicle-inspection';
+import type { VehicleInspection as VehicleInspectionData, VehicleBodyType } from '@/types/inspection';
 
 interface EditOrderContentProps {
   orderId: string;
@@ -34,10 +37,13 @@ export function EditOrderContent({ orderId }: EditOrderContentProps) {
   const [customerComplaints, setCustomerComplaints] = useState('');
   const [technicianId, setTechnicianId] = useState<string>('');
   const [entryMileage, setEntryMileage] = useState('');
-  const [fuelLevel, setFuelLevel] = useState('');
+  const [fuelLevel, setFuelLevel] = useState(0);
   const [commitmentDate, setCommitmentDate] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
   const [priority, setPriority] = useState('1');
+  const [inspectionData, setInspectionData] = useState<VehicleInspectionData | null>(null);
+  const [vehicleBodyType, setVehicleBodyType] = useState<VehicleBodyType | null>(null);
+  const [showInspection, setShowInspection] = useState(false);
 
   // Fetch order data
   const { data: orderResponse, isLoading: orderLoading } = useQuery({
@@ -75,10 +81,15 @@ export function EditOrderContent({ orderId }: EditOrderContentProps) {
       setCustomerComplaints(order.customer_complaints || '');
       setTechnicianId(order.technician_id || '');
       setEntryMileage(order.entry_mileage?.toString() || '');
-      setFuelLevel(order.fuel_level?.toString() || '');
+      setFuelLevel(order.fuel_level ?? 0);
       setCommitmentDate(order.commitment_date || '');
       setInternalNotes(order.internal_notes || '');
       setPriority(order.priority?.toString() || '1');
+      setInspectionData(order.inspection_data as unknown as VehicleInspectionData | null);
+      setVehicleBodyType((order.vehicle_body_type as VehicleBodyType) ?? null);
+      if (order.inspection_data) {
+        setShowInspection(true);
+      }
     }
   }, [order]);
 
@@ -115,10 +126,12 @@ export function EditOrderContent({ orderId }: EditOrderContentProps) {
       customer_complaints: customerComplaints || null,
       technician_id: technicianId || null,
       entry_mileage: entryMileage ? parseInt(entryMileage) : null,
-      fuel_level: fuelLevel ? parseInt(fuelLevel) : null,
+      fuel_level: fuelLevel || null,
       commitment_date: commitmentDate || null,
       internal_notes: internalNotes || null,
       priority: parseInt(priority) || 1,
+      inspection_data: inspectionData as unknown as OrderUpdate['inspection_data'],
+      vehicle_body_type: vehicleBodyType || null,
     };
 
     updateOrderMutation.mutate(orderData);
@@ -254,30 +267,8 @@ export function EditOrderContent({ orderId }: EditOrderContentProps) {
               </Select>
             </div>
 
-            {/* Información del vehículo */}
+            {/* Prioridad */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="mileage">Kilometraje de Entrada</Label>
-                <Input
-                  id="mileage"
-                  type="number"
-                  value={entryMileage}
-                  onChange={(e) => setEntryMileage(e.target.value)}
-                  placeholder="150000"
-                />
-              </div>
-              <div>
-                <Label htmlFor="fuel">Nivel de Combustible (%)</Label>
-                <Input
-                  id="fuel"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={fuelLevel}
-                  onChange={(e) => setFuelLevel(e.target.value)}
-                  placeholder="50"
-                />
-              </div>
               <div>
                 <Label htmlFor="priority">Prioridad</Label>
                 <Select value={priority} onValueChange={setPriority}>
@@ -316,6 +307,47 @@ export function EditOrderContent({ orderId }: EditOrderContentProps) {
               />
             </div>
           </CardContent>
+        </Card>
+
+        {/* Inspection Section (collapsible) */}
+        <Card className="mt-6">
+          <CardHeader
+            className="cursor-pointer select-none"
+            onClick={() => setShowInspection(!showInspection)}
+          >
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                Inspección del Vehículo
+                {inspectionData && (
+                  <Badge variant="secondary" className="text-xs">
+                    {inspectionData.markers?.length || 0} daños
+                  </Badge>
+                )}
+              </CardTitle>
+              {showInspection ? (
+                <ChevronUp className="h-5 w-5 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-5 w-5 text-muted-foreground" />
+              )}
+            </div>
+            <CardDescription>
+              Kilometraje, combustible y estado del vehículo al ingreso
+            </CardDescription>
+          </CardHeader>
+          {showInspection && (
+            <CardContent>
+              <VehicleInspection
+                value={inspectionData}
+                onChange={setInspectionData}
+                fuelLevel={fuelLevel}
+                onFuelLevelChange={setFuelLevel}
+                entryMileage={entryMileage}
+                onEntryMileageChange={setEntryMileage}
+                bodyType={vehicleBodyType}
+                onBodyTypeChange={setVehicleBodyType}
+              />
+            </CardContent>
+          )}
         </Card>
 
         {/* Action buttons */}
