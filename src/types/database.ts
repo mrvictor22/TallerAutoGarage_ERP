@@ -179,6 +179,7 @@ export interface Database {
           last_service_date: string | null
           notes: string | null
           photos: string[]
+          body_type: string | null
           created_by: string | null
           created_at: string
           updated_at: string
@@ -199,6 +200,7 @@ export interface Database {
           last_service_date?: string | null
           notes?: string | null
           photos?: string[]
+          body_type?: string | null
           created_by?: string | null
           created_at?: string
           updated_at?: string
@@ -219,6 +221,7 @@ export interface Database {
           last_service_date?: string | null
           notes?: string | null
           photos?: string[]
+          body_type?: string | null
           created_by?: string | null
           created_at?: string
           updated_at?: string
@@ -263,6 +266,8 @@ export interface Database {
           internal_notes: string | null
           attachments: string[]
           tags: string[]
+          inspection_data: Json | null
+          vehicle_body_type: string | null
           created_by: string | null
           created_at: string
           updated_at: string
@@ -307,6 +312,8 @@ export interface Database {
           internal_notes?: string | null
           attachments?: string[]
           tags?: string[]
+          inspection_data?: Json | null
+          vehicle_body_type?: string | null
           created_by?: string | null
           created_at?: string
           updated_at?: string
@@ -351,6 +358,8 @@ export interface Database {
           internal_notes?: string | null
           attachments?: string[]
           tags?: string[]
+          inspection_data?: Json | null
+          vehicle_body_type?: string | null
           created_by?: string | null
           created_at?: string
           updated_at?: string

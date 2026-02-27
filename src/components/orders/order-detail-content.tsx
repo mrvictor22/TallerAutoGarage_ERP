@@ -37,8 +37,11 @@ import {
   Mail,
   MapPin,
   Wrench,
-  Package
+  Package,
+  ClipboardCheck
 } from 'lucide-react';
+import { VehicleInspection } from '@/components/inspection/vehicle-inspection';
+import type { VehicleInspection as VehicleInspectionData, VehicleBodyType } from '@/types/inspection';
 import {
   Select,
   SelectContent,
@@ -608,6 +611,12 @@ export function OrderDetailContent({ orderId, defaultTab = 'summary' }: OrderDet
               <MessageSquare className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">WhatsApp</span>
             </TabsTrigger>
+            {order.inspection_data && (
+              <TabsTrigger value="inspection" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2">
+                <ClipboardCheck className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Inspección</span>
+              </TabsTrigger>
+            )}
           </TabsList>
         </div>
 
@@ -705,6 +714,29 @@ export function OrderDetailContent({ orderId, defaultTab = 'summary' }: OrderDet
             }}
           />
         </TabsContent>
+
+        {order.inspection_data && (
+          <TabsContent value="inspection" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Inspección del Vehículo</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <VehicleInspection
+                  value={order.inspection_data as unknown as VehicleInspectionData}
+                  onChange={() => {}}
+                  fuelLevel={order.fuel_level ?? 0}
+                  onFuelLevelChange={() => {}}
+                  entryMileage={order.entry_mileage?.toString() ?? ''}
+                  onEntryMileageChange={() => {}}
+                  bodyType={(order.vehicle_body_type as VehicleBodyType) ?? null}
+                  onBodyTypeChange={() => {}}
+                  readOnly
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

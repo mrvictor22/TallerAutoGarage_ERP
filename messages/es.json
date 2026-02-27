@@ -53,6 +53,7 @@
     "parts": "Repuestos/Facturas",
     "budget": "Presupuesto",
     "whatsapp": "WhatsApp",
+    "inspection": "Inspección",
     "history": "Historial",
     "changeStatus": "Cambiar Estado",
     "sendWhatsApp": "Enviar WhatsApp",
@@ -62,6 +63,65 @@
     "uploadDocument": "Subir Documento",
     "approve": "Aprobar",
     "reject": "Rechazar"
+  },
+  "inspection": {
+    "title": "Inspección del Vehículo",
+    "bodyType": "Tipo de Vehículo",
+    "diagram": "Diagrama",
+    "inventory": "Inventario",
+    "fuel": "Combustible",
+    "bodyTypes": {
+      "sedan": "Sedán",
+      "pickup": "Pickup",
+      "suv": "SUV",
+      "van": "Van"
+    },
+    "views": {
+      "top": "Superior",
+      "front": "Frontal",
+      "left": "Lateral Izq.",
+      "right": "Lateral Der."
+    },
+    "damageTypes": {
+      "scratch": "Rayón",
+      "dent": "Abolladura",
+      "paint": "Pintura dañada",
+      "crack": "Grieta",
+      "broken": "Roto",
+      "missing": "Faltante",
+      "rust": "Óxido",
+      "other": "Otro"
+    },
+    "severity": {
+      "light": "Leve",
+      "moderate": "Moderado",
+      "severe": "Severo"
+    },
+    "checklist": {
+      "radio": "Radio / Estéreo",
+      "spareTire": "Llanta de Repuesto",
+      "extinguisher": "Extintor",
+      "mirrors": "Mica (espejos)",
+      "cones": "Conos / Triángulos",
+      "mats": "Alfombras",
+      "emblems": "Emblemas",
+      "jack": "Gato Hidráulico",
+      "lugWrench": "Llave de Ruedas",
+      "wipers": "Plumillas (limpiabrisas)",
+      "hubcaps": "Tapones de Rueda",
+      "antenna": "Antena"
+    },
+    "fuelLevel": "Nivel de Combustible",
+    "entryMileage": "Kilometraje de Entrada",
+    "tapToMark": "Toca para marcar un daño",
+    "noDamages": "No se han marcado daños",
+    "skipInspection": "Saltar Inspección",
+    "createWithoutInspection": "Crear sin Inspección",
+    "photos": "Fotos",
+    "photosOptional": "opcional, máx 3",
+    "addPhoto": "Agregar",
+    "uploadError": "Error al subir la imagen",
+    "maxPhotosReached": "Máximo 3 fotos por daño"
   },
   "owners": {
     "title": "Dueños",
