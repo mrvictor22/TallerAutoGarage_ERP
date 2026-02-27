@@ -126,7 +126,7 @@ export function EditOrderContent({ orderId }: EditOrderContentProps) {
       customer_complaints: customerComplaints || null,
       technician_id: technicianId || null,
       entry_mileage: entryMileage ? parseInt(entryMileage) : null,
-      fuel_level: fuelLevel || null,
+      fuel_level: fuelLevel ? Math.round(fuelLevel) : null,
       commitment_date: commitmentDate || null,
       internal_notes: internalNotes || null,
       priority: parseInt(priority) || 1,

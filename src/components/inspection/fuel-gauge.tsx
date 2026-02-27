@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils"
 // ---------------------------------------------------------------------------
 
 const SEGMENTS = 8
-const SEGMENT_VALUES = [0, 12.5, 25, 37.5, 50, 62.5, 75, 87.5, 100] as const
+const SEGMENT_VALUES = [0, 13, 25, 38, 50, 63, 75, 88, 100] as const
 
 /**
  * The gauge sweeps 180° starting at the left (180°) and ending at the right
@@ -117,10 +117,13 @@ function segmentColor(index: number, filled: boolean, readOnly: boolean): string
  */
 function filledSegmentCount(value: number): number {
   // How many of the 8 segments should be lit
-  // segment i lights up when value >= (i+1) * 12.5, with segment 0 at value > 0
   if (value <= 0) return 0
   if (value >= 100) return 8
-  return Math.ceil(value / 12.5)
+  // Find the highest segment whose threshold the value meets
+  for (let i = SEGMENTS; i >= 1; i--) {
+    if (value >= SEGMENT_VALUES[i]) return i
+  }
+  return value > 0 ? 1 : 0
 }
 
 // ---------------------------------------------------------------------------
@@ -193,16 +196,16 @@ export function FuelGauge({
   const clampedValue = Math.min(100, Math.max(0, value))
   const litCount = filledSegmentCount(clampedValue)
 
-  // Display string: show fraction label at known breakpoints, else percentage
+  // Display string: show fraction label at known breakpoints
   const displayLabel: string = (() => {
-    if (clampedValue === 0)    return "E"
-    if (clampedValue <= 12.5)  return "1/8"
-    if (clampedValue <= 25)    return "1/4"
-    if (clampedValue <= 37.5)  return "3/8"
-    if (clampedValue <= 50)    return "1/2"
-    if (clampedValue <= 62.5)  return "5/8"
-    if (clampedValue <= 75)    return "3/4"
-    if (clampedValue <= 87.5)  return "7/8"
+    if (clampedValue === 0)   return "E"
+    if (clampedValue <= 13)   return "⅛"
+    if (clampedValue <= 25)   return "¼"
+    if (clampedValue <= 38)   return "⅜"
+    if (clampedValue <= 50)   return "½"
+    if (clampedValue <= 63)   return "⅝"
+    if (clampedValue <= 75)   return "¾"
+    if (clampedValue <= 88)   return "⅞"
     return "F"
   })()
 
