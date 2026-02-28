@@ -357,6 +357,13 @@ export function VehicleInspection({
                   <Label htmlFor="entry-mileage" className="text-sm font-medium">
                     Kilometraje de entrada
                   </Label>
+                  {readOnly ? (
+                    <p className="text-sm font-medium tabular-nums">
+                      {entryMileage
+                        ? `${Number(entryMileage).toLocaleString('es-GT')} km`
+                        : '—'}
+                    </p>
+                  ) : (
                   <div className="relative">
                     <Input
                       id="entry-mileage"
@@ -366,7 +373,6 @@ export function VehicleInspection({
                       placeholder="Ej: 45000"
                       value={entryMileage}
                       onChange={(e) => onEntryMileageChange(e.target.value)}
-                      disabled={readOnly}
                       aria-label="Kilometraje de entrada del vehículo"
                       className="pr-10"
                     />
@@ -377,6 +383,7 @@ export function VehicleInspection({
                       km
                     </span>
                   </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
