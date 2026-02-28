@@ -6,26 +6,13 @@
  * Displays all damage markers placed on the vehicle diagram, grouped by view.
  * Each marker shows a severity color dot, damage type label, description, and
  * optional edit/delete actions.
- *
- * Usage:
- * ```tsx
- * import { DamageMarkerList } from '@/components/inspection/damage-marker-list';
- *
- * // Editable
- * <DamageMarkerList
- *   markers={markers}
- *   onEdit={(marker) => openEditDialog(marker)}
- *   onDelete={(id) => removeMarker(id)}
- * />
- *
- * // Read-only (e.g. inside a PDF or detail view)
- * <DamageMarkerList markers={markers} readOnly />
- * ```
  */
 
-import { Camera, Pencil, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Camera, ChevronLeft, ChevronRight, Pencil, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import {
   type DamageMarker,
@@ -65,10 +52,11 @@ interface MarkerRowProps {
   marker: DamageMarker;
   onEdit?: (marker: DamageMarker) => void;
   onDelete?: (markerId: string) => void;
+  onPhotoClick?: (urls: string[], index: number) => void;
   readOnly: boolean;
 }
 
-function MarkerRow({ marker, onEdit, onDelete, readOnly }: MarkerRowProps) {
+function MarkerRow({ marker, onEdit, onDelete, onPhotoClick, readOnly }: MarkerRowProps) {
   return (
     <li
       className="flex items-start gap-3 rounded-md border border-border bg-muted/30 px-3 py-2.5 transition-colors hover:bg-muted/60"
@@ -105,12 +93,11 @@ function MarkerRow({ marker, onEdit, onDelete, readOnly }: MarkerRowProps) {
         {(marker.photo_urls?.length ?? 0) > 0 && (
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             {marker.photo_urls.map((url, i) => (
-              <a
+              <button
                 key={i}
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block size-12 shrink-0 overflow-hidden rounded border border-border hover:ring-2 hover:ring-ring transition-all"
+                type="button"
+                onClick={() => onPhotoClick?.(marker.photo_urls, i)}
+                className="block size-12 shrink-0 overflow-hidden rounded border border-border hover:ring-2 hover:ring-ring transition-all cursor-pointer"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -119,7 +106,7 @@ function MarkerRow({ marker, onEdit, onDelete, readOnly }: MarkerRowProps) {
                   className="size-full object-cover"
                   loading="lazy"
                 />
-              </a>
+              </button>
             ))}
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <Camera className="size-3" aria-hidden />
@@ -167,10 +154,11 @@ interface ViewGroupProps {
   markers: DamageMarker[];
   onEdit?: (marker: DamageMarker) => void;
   onDelete?: (markerId: string) => void;
+  onPhotoClick?: (urls: string[], index: number) => void;
   readOnly: boolean;
 }
 
-function ViewGroup({ view, markers, onEdit, onDelete, readOnly }: ViewGroupProps) {
+function ViewGroup({ view, markers, onEdit, onDelete, onPhotoClick, readOnly }: ViewGroupProps) {
   if (markers.length === 0) return null;
 
   return (
@@ -199,6 +187,7 @@ function ViewGroup({ view, markers, onEdit, onDelete, readOnly }: ViewGroupProps
             marker={marker}
             onEdit={onEdit}
             onDelete={onDelete}
+            onPhotoClick={onPhotoClick}
             readOnly={readOnly}
           />
         ))}
@@ -213,6 +202,17 @@ export function DamageMarkerList({
   onDelete,
   readOnly = false,
 }: DamageMarkerListProps) {
+  // Lightbox state
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxPhotos, setLightboxPhotos] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  const openLightbox = (urls: string[], index: number) => {
+    setLightboxPhotos(urls);
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  };
+
   // Group markers by view, preserving insertion order within each group
   const markersByView = VIEW_ORDER.reduce<Record<DiagramView, DamageMarker[]>>(
     (acc, view) => {
@@ -259,11 +259,79 @@ export function DamageMarkerList({
               markers={markersByView[view]}
               onEdit={onEdit}
               onDelete={onDelete}
+              onPhotoClick={openLightbox}
               readOnly={readOnly}
             />
           ))}
         </div>
       )}
+
+      {/* Photo lightbox */}
+      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+        <DialogContent className="max-w-3xl w-[95vw] p-0 bg-black/95 border-none gap-0 [&>button]:hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3">
+            <span className="text-sm text-white/70 tabular-nums">
+              {lightboxIndex + 1} / {lightboxPhotos.length}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-9 text-white/70 hover:text-white hover:bg-white/10"
+              onClick={() => setLightboxOpen(false)}
+            >
+              <X className="size-5" />
+            </Button>
+          </div>
+
+          {/* Image */}
+          <div className="relative flex items-center justify-center min-h-[50vh] max-h-[75vh] px-12">
+            {lightboxPhotos[lightboxIndex] && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={lightboxPhotos[lightboxIndex]}
+                alt={`Foto ${lightboxIndex + 1} del daño`}
+                className="max-h-[75vh] max-w-full object-contain"
+              />
+            )}
+
+            {/* Prev button */}
+            {lightboxPhotos.length > 1 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute left-1 size-10 text-white/70 hover:text-white hover:bg-white/10 rounded-full"
+                onClick={() =>
+                  setLightboxIndex((prev) =>
+                    prev === 0 ? lightboxPhotos.length - 1 : prev - 1
+                  )
+                }
+              >
+                <ChevronLeft className="size-6" />
+              </Button>
+            )}
+
+            {/* Next button */}
+            {lightboxPhotos.length > 1 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 size-10 text-white/70 hover:text-white hover:bg-white/10 rounded-full"
+                onClick={() =>
+                  setLightboxIndex((prev) =>
+                    prev === lightboxPhotos.length - 1 ? 0 : prev + 1
+                  )
+                }
+              >
+                <ChevronRight className="size-6" />
+              </Button>
+            )}
+          </div>
+
+          {/* Spacer */}
+          <div className="h-4" />
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
