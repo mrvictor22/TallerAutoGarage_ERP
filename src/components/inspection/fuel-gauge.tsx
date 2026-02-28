@@ -196,17 +196,11 @@ export function FuelGauge({
   const clampedValue = Math.min(100, Math.max(0, value))
   const litCount = filledSegmentCount(clampedValue)
 
-  // Display string: show fraction label at known breakpoints
+  // Display string: show percentage for clarity
   const displayLabel: string = (() => {
-    if (clampedValue === 0)   return "E"
-    if (clampedValue <= 13)   return "⅛"
-    if (clampedValue <= 25)   return "¼"
-    if (clampedValue <= 38)   return "⅜"
-    if (clampedValue <= 50)   return "½"
-    if (clampedValue <= 63)   return "⅝"
-    if (clampedValue <= 75)   return "¾"
-    if (clampedValue <= 88)   return "⅞"
-    return "F"
+    if (clampedValue === 0) return "E"
+    if (clampedValue >= 100) return "F"
+    return `${clampedValue}%`
   })()
 
   return (

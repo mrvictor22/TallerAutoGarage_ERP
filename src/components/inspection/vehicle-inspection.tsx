@@ -39,7 +39,7 @@
  * ```
  */
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 
 import {
   type VehicleBodyType,
@@ -144,6 +144,17 @@ export function VehicleInspection({
 
   const markers = useMemo(() => value?.markers ?? [], [value?.markers])
   const checklist = useMemo(() => value?.checklist ?? [], [value?.checklist])
+
+  // In readOnly mode, auto-select the first view that has markers
+  useEffect(() => {
+    if (readOnly && markers.length > 0) {
+      const viewsWithMarkers: DiagramView[] = ['top', 'front', 'left', 'right']
+      const firstWithDamage = viewsWithMarkers.find(v =>
+        markers.some(m => m.view === v)
+      )
+      if (firstWithDamage) setActiveView(firstWithDamage)
+    }
+  }, [readOnly, markers])
 
   // ── Helpers: emit updated inspection ───────────────────────────────────────
 

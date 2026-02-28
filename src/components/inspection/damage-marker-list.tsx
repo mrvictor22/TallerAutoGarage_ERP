@@ -103,10 +103,27 @@ function MarkerRow({ marker, onEdit, onDelete, readOnly }: MarkerRowProps) {
         )}
 
         {(marker.photo_urls?.length ?? 0) > 0 && (
-          <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-            <Camera className="size-3" aria-hidden />
-            <span>
-              {marker.photo_urls.length} foto{marker.photo_urls.length !== 1 ? 's' : ''}
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            {marker.photo_urls.map((url, i) => (
+              <a
+                key={i}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block size-12 shrink-0 overflow-hidden rounded border border-border hover:ring-2 hover:ring-ring transition-all"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={url}
+                  alt={`Foto ${i + 1} del daño`}
+                  className="size-full object-cover"
+                  loading="lazy"
+                />
+              </a>
+            ))}
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <Camera className="size-3" aria-hidden />
+              {marker.photo_urls.length}
             </span>
           </div>
         )}

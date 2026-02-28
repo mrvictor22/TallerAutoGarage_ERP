@@ -214,6 +214,7 @@ export function VehicleDiagram({
         aria-label={`Diagrama: ${DIAGRAM_VIEW_LABELS[activeView]}`}
         className={cn(
           'relative select-none rounded-xl border border-border bg-muted/30',
+          'max-w-2xl mx-auto w-full',
           !readOnly && 'cursor-crosshair',
         )}
         ref={containerRef}
