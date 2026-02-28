@@ -342,28 +342,17 @@ export function FuelGauge({
           F
         </text>
 
-        {/* ----------------------------------------------------------------- */}
-        {/* Center percentage label                                            */}
-        {/* ----------------------------------------------------------------- */}
-        <text
-          x={CX}
-          y="106"
-          fontSize="14"
-          fontWeight="700"
-          fill="var(--foreground)"
-          textAnchor="middle"
-          fontFamily="var(--font-sans, sans-serif)"
-        >
-          {displayLabel}
-        </text>
       </svg>
 
       {/* ------------------------------------------------------------------- */}
-      {/* Accessible hidden value for screen readers                          */}
+      {/* Percentage label — outside SVG for clarity                          */}
       {/* ------------------------------------------------------------------- */}
-      <span className="sr-only">
-        Nivel de combustible: {displayLabel} ({clampedValue}%)
-      </span>
+      <p
+        className="-mt-2 text-lg font-bold tabular-nums text-foreground"
+        aria-label={`Nivel de combustible: ${displayLabel}`}
+      >
+        {displayLabel}
+      </p>
 
       {/* ------------------------------------------------------------------- */}
       {/* Quick-select buttons row (mobile-friendly, 44px min tap targets)     */}
